@@ -1,0 +1,40 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          swftp-sftp
+# Required-Start:    $local_fs $remote_fs $network $syslog $named
+# Required-Stop:     $local_fs $remote_fs $network $syslog $named
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start/stop/restart swftp-sftp server
+### END INIT INFO
+
+set -e
+
+pidfile="/var/run/swftp-sftp.pid"
+uid=65534
+gid=65534
+PREFIX="swftp-sftp"
+
+case "$1" in
+  start)
+    /usr/bin/env twistd --reactor=epoll \
+                --syslog --prefix=$PREFIX \
+                --pidfile=$pidfile \
+                --uid=$uid \
+                --gid=$gid \
+                swftp-sftp
+    ;;
+  stop)
+    kill $(cat $pidfile)
+    ;;
+  restart)
+    $0 stop
+    $0 start
+    ;;
+  *)
+    echo "Usage: /etc/init.d/swftp-sftp {start|stop|restart}"
+    exit 1
+    ;;
+esac
+
+exit 0
