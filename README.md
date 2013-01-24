@@ -4,7 +4,6 @@ SwFTP is an FTP and SFTP interface for Openstack Object Storage (swift). It will
 
 Features
 --------
-* SFTP and FTP Servers that Proxy to OpenStack Swift requests
 * Configurable auth endpoint to use any OpenStack Swift installation.
 * Configurable welcome message for the FTP server.
 * Support for HTTPS communication to the backend OpenStack Object Storage cluster.
