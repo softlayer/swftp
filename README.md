@@ -126,6 +126,18 @@ Caveats
 * No recursive delete. Most clients will explicitly delete each file/directory recursively anyway.
 * Fake-directories and real objects of the same name will simply display the directory. A lot of clients actually explode if a directory listing has duplicates.
 
+
+Organization
+------------
+
+* etc/: Sample config files
+* swftp/: Core/shared code
+  * ftp/: FTP server
+  * sftp/: SFTP server
+  * test/: Unit and functional tests
+* twisted/: For Twisted Plugin System
+
+
 License
 -------
 

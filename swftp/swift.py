@@ -1,4 +1,9 @@
 """
+swift includes a basic swift client for twisted.
+
+    client = SwiftConnection(auth_url, username, api_key, pool=pool)
+    d = client.put_object('container', 'path/to/obj')
+
 See COPYING for license information.
 """
 from twisted.internet import reactor
@@ -130,6 +135,9 @@ def cb_json_decode(result):
 
 
 class SwiftConnection:
+    """
+        A basic connection class to interface with OpenStack Swift.
+    """
     user_agent = 'Twisted Swift'
 
     def __init__(self, auth_url, username, api_key, pool=None):
@@ -143,7 +151,7 @@ class SwiftConnection:
         self.agent = Agent(reactor, contextFactory, pool=pool)
 
     def make_request(self, method, path, params=None, headers=None, body=None,
-            body_reader=None):
+                     body_reader=None):
         h = {
             'User-Agent': [self.user_agent],
             'X-Auth-Token': [self.auth_token],
@@ -171,10 +179,10 @@ class SwiftConnection:
 
     def authenticate(self):
         headers = {
-                    'User-Agent': [self.user_agent],
-                    'X-Auth-User': [self.username],
-                    'X-Auth-Key': [self.api_key],
-                  }
+            'User-Agent': [self.user_agent],
+            'X-Auth-User': [self.username],
+            'X-Auth-Key': [self.api_key],
+        }
 
         d = self.agent.request('GET', self.auth_url, Headers(headers))
         d.addCallback(cb_recv_resp, load_body=True)
@@ -203,7 +211,7 @@ class SwiftConnection:
         return d
 
     def get_container(self, container, marker=None, prefix=None, path=None,
-            delimiter=None, limit=None):
+                      delimiter=None, limit=None):
         params = {'format': 'json'}
         if marker:
             params['marker'] = quote(marker)
@@ -222,7 +230,7 @@ class SwiftConnection:
 
     def put_container(self, container, headers=None):
         d = self.make_request('PUT', quote(container),
-            headers=headers)
+                              headers=headers)
         d.addCallback(cb_recv_resp)
         return d
 

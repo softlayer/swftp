@@ -9,11 +9,13 @@ from swftp.swiftfilesystem import swift_stat
 
 
 class SwiftDirectory(object):
-    "Swift Directory. Is an iterator that returns a listing of the directory."
+    "Swift Directory is an iterator that returns a listing of the directory."
     def __init__(self, swiftfilesystem, fullpath):
         self.swiftfilesystem = swiftfilesystem
         self.fullpath = fullpath
-        self.files = OrderedDict([
+        # A lot of files require . and .. to be within the directory listing
+        self.files = OrderedDict(
+            [
                 ('.', {}),
                 ('..', {}),
             ])

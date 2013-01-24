@@ -1,4 +1,6 @@
 """
+This file defines what is required for swftp-ftp to work with twistd.
+
 See COPYING for license information.
 """
 from twisted.application import internet
@@ -17,13 +19,13 @@ def get_config(config_path, overrides):
         'port': '5021',
         'num_persistent_connections': '4',
         'connection_timeout': '240',
-        'welcome_message': 'Welcome to SwFTP' \
+        'welcome_message': 'Welcome to SwFTP'
                            ' - an FTP interface for Openstack Swift',
     }
     c = ConfigParser.ConfigParser(defaults)
     c.add_section('ftp')
     c.read([config_path, '/etc/swift/swftp.conf',
-        os.path.expanduser('~/.swftp.cfg')])
+           os.path.expanduser('~/.swftp.cfg')])
     for k, v in overrides.iteritems():
         if v:
             c.set('ftp', k, v)
@@ -41,7 +43,7 @@ class Options(usage.Options):
             "[default: http://127.0.0.1:8080/auth/v1.0]"],
         ["port", "p", None, "Port to bind to."],
         ["host", "h", None, "IP to bind to."],
-        ]
+    ]
 
 
 def makeService(options):
@@ -66,10 +68,8 @@ def makeService(options):
     c = get_config(options['config_file'], options)
 
     pool = HTTPConnectionPool(reactor, persistent=True)
-    pool.maxPersistentPerHost = c.getint('ftp',
-        'num_persistent_connections')
-    pool.cachedConnectionTimeout = c.getint('ftp',
-        'connection_timeout')
+    pool.maxPersistentPerHost = c.getint('ftp', 'num_persistent_connections')
+    pool.cachedConnectionTimeout = c.getint('ftp', 'connection_timeout')
 
     authdb = SwiftBasedAuthDB(auth_url=c.get('ftp', 'auth_url'), pool=pool)
 
@@ -83,4 +83,4 @@ def makeService(options):
     signal.signal(signal.SIGUSR2, print_runtime_info)
 
     return internet.TCPServer(c.getint('sftp', 'port'), ftpfactory,
-        interface=c.get('ftp', 'host'))
+                              interface=c.get('ftp', 'host'))

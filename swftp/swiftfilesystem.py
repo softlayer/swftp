@@ -1,4 +1,7 @@
 """
+This file includes a set of helpers that make treating Swift as a filesystem a
+bit easier.
+
 See COPYING for license information.
 """
 import datetime
@@ -19,6 +22,7 @@ from swftp.swift import NotFound, Conflict
 
 
 def obj_to_path(path):
+    " Convert an entire path to a (container, item) tuple "
     path = path.strip('/')
     path = urlparse.urljoin('/', path)
     path = path.strip('/')
@@ -59,18 +63,18 @@ def cb_parse_object_headers(headers):
 
 
 def swift_stat(last_modified=None, content_type="application/directory",
-             count=1, bytes=0, size=0, **kwargs):
+               count=1, bytes=0, size=0, **kwargs):
     size = int(size) or int(bytes)
     mtime = try_datetime_parse(last_modified)
     if not mtime:
         mtime = time.mktime(datetime.datetime.utcnow().timetuple())
 
     if content_type == "application/directory":
-        mode = 0755 | stat.S_IFDIR
+        mode = 755 | stat.S_IFDIR
     else:
-        mode = 0644 | stat.S_IFREG
-    return os.stat_result((mode, 0L, 0L, count, 65535, 65535, size, mtime,
-        mtime, mtime))
+        mode = 644 | stat.S_IFREG
+    return os.stat_result((mode, 0, 0, count, 65535, 65535, size, mtime,
+                           mtime, mtime))
 
 
 class SwiftWriteFile(object):
@@ -131,8 +135,8 @@ class SwiftFileSystem(object):
         headers = {}
         if offset > 0:
             headers['Range'] = 'bytes=%s-' % offset
-        d = self.swiftconn.get_object(container, path,
-            receiver=consumer, headers=headers)
+        d = self.swiftconn.get_object(container, path, receiver=consumer,
+                                      headers=headers)
         return d
 
     def touchFile(self, fullpath):
@@ -178,14 +182,15 @@ class SwiftFileSystem(object):
             prefix = None
             if path:
                 prefix = "%s/" % path
-            _, children = yield self.swiftconn.get_container(container,
-                prefix=prefix, limit=1)
+            _, children = yield self.swiftconn.get_container(
+                container, prefix=prefix, limit=1)
             if len(children) > 0:
                 raise NotImplementedError
 
             # This is an actual object with no children. Free to rename.
-            yield self.swiftconn.put_object(newcontainer, newpath,
-                        headers={'X-Copy-From': '%s/%s' % (container, path)})
+            yield self.swiftconn.put_object(
+                newcontainer, newpath,
+                headers={'X-Copy-From': '%s/%s' % (container, path)})
             yield self.swiftconn.delete_object(container, path)
 
     @defer.inlineCallbacks
@@ -200,8 +205,8 @@ class SwiftFileSystem(object):
                 prefix = None
                 if path:
                     prefix = "%s/" % path
-                _, children = yield self.swiftconn.get_container(container,
-                    prefix=prefix, limit=1)
+                _, children = yield self.swiftconn.get_container(
+                    container, prefix=prefix, limit=1)
                 if len(children) == 0:
                     raise NotFound(404, 'Not Found')
                 defer.returnValue(
@@ -218,8 +223,7 @@ class SwiftFileSystem(object):
         container, path = obj_to_path(fullpath)
         if path:
             headers = {'Content-Type': 'application/directory'}
-            d = self.swiftconn.put_object(container, path,
-                headers=headers)
+            d = self.swiftconn.put_object(container, path, headers=headers)
         else:
             d = self.swiftconn.put_container(container)
         return d
@@ -234,8 +238,8 @@ class SwiftFileSystem(object):
                 yield self.swiftconn.delete_container(container)
             except Conflict:
                 # Wait 2 seconds and try to delete the container once more
-                yield task.deferLater(reactor, 2,
-                    self.swiftconn.delete_container, container)
+                yield task.deferLater(
+                    reactor, 2, self.swiftconn.delete_container, container)
 
     def get_full_listing(self, fullpath):
         """
@@ -252,14 +256,14 @@ class SwiftFileSystem(object):
             return self.get_account_listing()
 
     def get_container_listing(self, container, path, marker=None,
-            all_files=None):
+                              all_files=None):
         if all_files is None:
             all_files = OrderedDict()
         prefix = None
         if path:
             prefix = "%s/" % path
-        d = self.swiftconn.get_container(container, prefix=prefix,
-            delimiter='/', marker=marker)
+        d = self.swiftconn.get_container(
+            container, prefix=prefix, delimiter='/', marker=marker)
 
         def cb(results):
             r, files = results
@@ -273,8 +277,8 @@ class SwiftFileSystem(object):
                 all_files[f['formatted_name']] = f
                 next_marker = f['name']
             if len(files) > 0:
-                return self.get_container_listing(container, path,
-                    marker=next_marker, all_files=all_files)
+                return self.get_container_listing(
+                    container, path, marker=next_marker, all_files=all_files)
             return all_files
         d.addCallback(cb)
         return d
@@ -293,8 +297,8 @@ class SwiftFileSystem(object):
                 all_files[f['formatted_name']] = f
                 next_marker = f['name']
             if len(files) > 0:
-                return self.get_account_listing(marker=next_marker,
-                    all_files=all_files)
+                return self.get_account_listing(
+                    marker=next_marker, all_files=all_files)
             return all_files
         d.addCallback(cb)
         return d

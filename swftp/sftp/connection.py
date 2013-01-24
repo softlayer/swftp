@@ -12,6 +12,6 @@ class SwiftConnection(SSHConnection):
         if channel.localClosed:
             return  # we're already closed
         self.transport.sendPacket(MSG_CHANNEL_WINDOW_ADJUST, struct.pack('>2L',
-                                    self.channelsToRemoteChannel[channel],
-                                    bytesToAdd))
+                                  self.channelsToRemoteChannel[channel],
+                                  bytesToAdd))
         channel.localWindowLeft += bytesToAdd

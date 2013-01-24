@@ -92,13 +92,14 @@ class RenameTests(FTPFuncTest):
         yield self.swift.put_object('ftp_tests', 'a')
 
         self.assertRaises(ftplib.error_perm, self.ftp.rename, 'ftp_tests',
-            'ftp_tests_2')
+                          'ftp_tests_2')
 
     @defer.inlineCallbacks
     def test_rename_object(self):
         yield self.swift.put_container('ftp_tests')
         yield self.swift.put_object('ftp_tests', 'a')
-        yield self.swift.put_object('ftp_tests', 'b',
+        yield self.swift.put_object(
+            'ftp_tests', 'b',
             headers={'Content-Type': 'application/directory'})
         yield self.swift.put_object('ftp_tests', 'b/nested')
         yield self.swift.put_object('ftp_tests', 'c/nested')
@@ -111,13 +112,13 @@ class RenameTests(FTPFuncTest):
         self.assertFalse(has_item('a', listing))
 
         self.assertRaises(ftplib.error_perm, self.ftp.rename, 'ftp_tests/b',
-            'ftp_tests/b1')
+                          'ftp_tests/b1')
         self.assertRaises(ftplib.error_perm, self.ftp.rename, 'ftp_tests/c',
-            'ftp_tests/c1')
+                          'ftp_tests/c1')
 
     def test_rename_object_not_found(self):
         self.assertRaises(ftplib.error_perm, self.ftp.rename, 'ftp_tests/a',
-            'ftp_tests/b')
+                          'ftp_tests/b')
 
 
 class DownloadTests(FTPFuncTest):
@@ -129,7 +130,7 @@ class DownloadTests(FTPFuncTest):
 
         dlpath = '%s/%s.dat' % (self.tmpdir, name)
         resp = self.ftp.retrbinary('RETR ftp_tests/%s' % name,
-            open(dlpath, 'wb').write)
+                                   open(dlpath, 'wb').write)
         self.assertEqual('226 Transfer Complete.', resp)
 
         self.assertEqual(os.stat(dlpath).st_size, size)
@@ -155,7 +156,7 @@ class UploadTests(FTPFuncTest):
         src_path, md5 = create_test_file(self.tmpdir, size)
 
         resp = self.ftp.storbinary('STOR ftp_tests/%s' % name,
-            open(src_path, 'rb'))
+                                   open(src_path, 'rb'))
         self.assertEqual('226 Transfer Complete.', resp)
 
         headers = yield self.swift.head_object('ftp_tests', name)
@@ -190,7 +191,8 @@ class SizeTests(FTPFuncTest):
     @defer.inlineCallbacks
     def test_size_directory(self):
         yield self.swift.put_container('ftp_tests')
-        yield self.swift.put_object('ftp_tests', 'test_size_directory',
+        yield self.swift.put_object(
+            'ftp_tests', 'test_size_directory',
             headers={'Content-Type': 'application/directory'})
 
         size = self.ftp.size('ftp_tests/test_size_directory')
@@ -201,7 +203,7 @@ class SizeTests(FTPFuncTest):
         yield self.swift.put_container('ftp_tests')
         src_path, md5 = create_test_file(self.tmpdir, 1024)
         yield upload_file(self.swift, 'ftp_tests', 'test_size_object',
-            src_path, md5)
+                          src_path, md5)
 
         size = self.ftp.size('ftp_tests')
         self.assertEqual(1024, size)
@@ -211,12 +213,13 @@ class SizeTests(FTPFuncTest):
 
     def test_size_object_missing(self):
         self.assertRaises(ftplib.error_perm, self.ftp.size,
-            'ftp_tests/test_size_container_missing')
+                          'ftp_tests/test_size_container_missing')
 
     @defer.inlineCallbacks
     def test_size_dir_dir(self):
         yield self.swift.put_container('ftp_tests')
-        yield self.swift.put_object('ftp_tests',
+        yield self.swift.put_object(
+            'ftp_tests',
             '%s/%s' % (utf8_chars.encode('utf-8'), utf8_chars.encode('utf-8')))
         size = self.ftp.size('ftp_tests/%s' % utf8_chars.encode('utf-8'))
         self.assertEqual(0, size)
@@ -226,14 +229,16 @@ class DeleteTests(FTPFuncTest):
     @defer.inlineCallbacks
     def test_delete_populated_container(self):
         yield self.swift.put_container('sftp_tests')
-        yield self.swift.put_object('sftp_tests', 'dir1',
+        yield self.swift.put_object(
+            'sftp_tests', 'dir1',
             headers={'Content-Type': 'application/directory'})
         self.assertRaises(ftplib.error_perm, self.ftp.rmd, 'sftp_tests')
 
     @defer.inlineCallbacks
     def test_delete_populated_dir(self):
         yield self.swift.put_container('sftp_tests')
-        yield self.swift.put_object('sftp_tests', 'dir1',
+        yield self.swift.put_object(
+            'sftp_tests', 'dir1',
             headers={'Content-Type': 'application/directory'})
         yield self.swift.put_object('sftp_tests', 'dir1/obj2')
         self.assertRaises(ftplib.error_perm, self.ftp.rmd, 'sftp_tests/dir1')
@@ -259,9 +264,11 @@ class ListingTests(FTPFuncTest):
     @defer.inlineCallbacks
     def test_directory_listing(self):
         yield self.swift.put_container('sftp_tests')
-        yield self.swift.put_object('sftp_tests', 'dir1',
+        yield self.swift.put_object(
+            'sftp_tests', 'dir1',
             headers={'Content-Type': 'application/directory'})
-        yield self.swift.put_object('sftp_tests', 'dir2',
+        yield self.swift.put_object(
+            'sftp_tests', 'dir2',
             headers={'Content-Type': 'application/directory'})
         yield self.swift.put_object('sftp_tests', 'dir2/obj1')
         yield self.swift.put_object('sftp_tests', 'dir3/obj2')
@@ -287,7 +294,8 @@ class ListingTests(FTPFuncTest):
     def test_long_listing(self):
         yield self.swift.put_container('sftp_tests')
         for i in range(101):
-            yield self.swift.put_object('sftp_tests', str(i),
+            yield self.swift.put_object(
+                'sftp_tests', str(i),
                 headers={'Content-Type': 'application/directory'})
         time.sleep(2)
         listing = self.ftp.nlst('sftp_tests')

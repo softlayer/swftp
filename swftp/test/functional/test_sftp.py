@@ -93,13 +93,14 @@ class RenameTests(SFTPFuncTest):
         yield self.swift.put_object('sftp_tests', 'a')
 
         self.assertRaises(IOError, self.sftp.rename, 'sftp_tests',
-            'sftp_tests_2')
+                          'sftp_tests_2')
 
     @defer.inlineCallbacks
     def test_rename_object(self):
         yield self.swift.put_container('sftp_tests')
         yield self.swift.put_object('sftp_tests', 'a')
-        yield self.swift.put_object('sftp_tests', 'b',
+        yield self.swift.put_object(
+            'sftp_tests', 'b',
             headers={'Content-Type': 'application/directory'})
         yield self.swift.put_object('sftp_tests', 'b/nested')
         yield self.swift.put_object('sftp_tests', 'c/nested')
@@ -112,13 +113,13 @@ class RenameTests(SFTPFuncTest):
         self.assertFalse(has_item('a', listing))
 
         self.assertRaises(IOError, self.sftp.rename, 'sftp_tests/b',
-            'sftp_tests/b1')
+                          'sftp_tests/b1')
         self.assertRaises(IOError, self.sftp.rename, 'sftp_tests/c',
-            'sftp_tests/c1')
+                          'sftp_tests/c1')
 
     def test_rename_object_not_found(self):
         self.assertRaises(IOError, self.sftp.rename, 'sftp_tests/a',
-            'sftp_tests/b')
+                          'sftp_tests/b')
 
 
 class DownloadTests(SFTPFuncTest):
@@ -199,7 +200,8 @@ class StatTests(SFTPFuncTest):
     @defer.inlineCallbacks
     def test_dir_dir_stat(self):
         yield self.swift.put_container('sftp_tests')
-        yield self.swift.put_object('sftp_tests',
+        yield self.swift.put_object(
+            'sftp_tests',
             '%s/%s' % (utf8_chars.encode('utf-8'), utf8_chars.encode('utf-8')))
         stat = self.sftp.stat('sftp_tests/%s' % utf8_chars)
         self.assertTrue(S_ISDIR(stat.st_mode))
@@ -216,14 +218,16 @@ class DeleteTests(SFTPFuncTest):
     @defer.inlineCallbacks
     def test_delete_populated_container(self):
         yield self.swift.put_container('sftp_tests')
-        yield self.swift.put_object('sftp_tests', 'dir1',
+        yield self.swift.put_object(
+            'sftp_tests', 'dir1',
             headers={'Content-Type': 'application/directory'})
         self.assertRaises(IOError, self.sftp.rmdir, 'sftp_tests')
 
     @defer.inlineCallbacks
     def test_delete_populated_dir(self):
         yield self.swift.put_container('sftp_tests')
-        yield self.swift.put_object('sftp_tests', 'dir1',
+        yield self.swift.put_object(
+            'sftp_tests', 'dir1',
             headers={'Content-Type': 'application/directory'})
         yield self.swift.put_object('sftp_tests', 'dir1/obj2')
         self.sftp.rmdir('sftp_tests/dir1')
@@ -251,9 +255,11 @@ class ListingTests(SFTPFuncTest):
     @defer.inlineCallbacks
     def test_directory_listing(self):
         yield self.swift.put_container('sftp_tests')
-        yield self.swift.put_object('sftp_tests', 'dir1',
+        yield self.swift.put_object(
+            'sftp_tests', 'dir1',
             headers={'Content-Type': 'application/directory'})
-        yield self.swift.put_object('sftp_tests', 'dir2',
+        yield self.swift.put_object(
+            'sftp_tests', 'dir2',
             headers={'Content-Type': 'application/directory'})
         yield self.swift.put_object('sftp_tests', 'dir2/obj1')
         yield self.swift.put_object('sftp_tests', 'dir3/obj2')
@@ -279,7 +285,8 @@ class ListingTests(SFTPFuncTest):
     def test_long_listing(self):
         yield self.swift.put_container('sftp_tests')
         for i in range(10):
-            yield self.swift.put_object('sftp_tests', str(i),
+            yield self.swift.put_object(
+                'sftp_tests', str(i),
                 headers={'Content-Type': 'application/directory'})
         time.sleep(2)
         listing = self.sftp.listdir('sftp_tests')

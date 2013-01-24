@@ -1,4 +1,6 @@
 """
+This file contains the primary server code for the FTP server.
+
 See COPYING for license information.
 """
 from zope.interface import implements
@@ -49,6 +51,7 @@ def stat_format(keys, props):
 
 
 class SwiftFTPShell:
+    """ Implements all the methods needed to treat Swift as an FTP Shell """
     implements(IFTPShell)
 
     def __init__(self, swiftconn):

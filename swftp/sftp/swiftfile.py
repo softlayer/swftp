@@ -1,4 +1,7 @@
 """
+Deals with file upload and download. This streams to and from the OpenStack
+Swift server.
+
 See COPYING for license information.
 """
 from zope import interface
@@ -15,7 +18,7 @@ from swftp.swift import NotFound
 
 
 class SwiftFileReceiver(Protocol):
-    "Streams data from Swift user to SFTP user"
+    "Streams data from Swift user to SFTP session"
     download_buffer_limit = 1024 * 1024
     upload_buffer_limit = 1024 * 1024
 
@@ -90,7 +93,7 @@ class SwiftFileReceiver(Protocol):
 
     def read(self, offset, length):
         """
-            Register the fact that this coroutine wants a slice of data
+            Register the fact that this session wants a slice of data
             described by the given offset/length. Returns a deferred that fires
             with the data once it is available.
         """
@@ -197,8 +200,9 @@ class SwiftFileSender(object):
 
     def write(self, data):
         if not self.started:
+            # If we haven't started uploading to Swift, start up that process
             self.write_finished, writer = \
-                    self.swiftfilesystem.startFileUpload(self.fullpath)
+                self.swiftfilesystem.startFileUpload(self.fullpath)
             self._task = task.cooperate(self._writeFlusher(writer))
             self.started = True
         d = defer.Deferred()
@@ -252,6 +256,7 @@ class SwiftFile(object):
 
     # New Writer Methods
     def close(self):
+        " Returns a deferred that fires when the connection is closed "
         if self.w:
             d = defer.maybeDeferred(self.w.close)
             d.addErrback(self._errClose)
@@ -275,10 +280,10 @@ class SwiftFile(object):
     # Reading Methods
     def readChunk(self, offset, length):
         if not self.r:
-            self.r = SwiftFileReceiver(int(self.props['size']),
-                session=self.session)
-            self.swiftfilesystem.startFileDownload(self.fullpath,
-                    self.r, offset=offset)
+            self.r = SwiftFileReceiver(
+                int(self.props['size']), session=self.session)
+            self.swiftfilesystem.startFileDownload(
+                self.fullpath, self.r, offset=offset)
         d = self.r.read(offset, length)
         return d
 

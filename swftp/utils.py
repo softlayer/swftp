@@ -18,7 +18,7 @@ DATE_FORMATS = [
     "%Y-%m-%d %H:%M:%S",
     "%Y-%m-%d %H:%M:%S.%f",
     "%Y-%m-%d"
-    ]
+]
 
 
 def try_datetime_parse(datetime_str):
@@ -52,8 +52,8 @@ def print_runtime_info(sig, frame):
                 clients.append(reader.getPeer())
             if isinstance(reader, twisted.internet.tcp.Client):
                 http_conn_num += 1
-        log.msg("[Clients: %(client_num)s] [HTTP Conns: %(http_conn_num)s] " \
-                "[Readers: %(reader_num)s] [Writers: %(writer_num)s] " \
+        log.msg("[Clients: %(client_num)s] [HTTP Conns: %(http_conn_num)s] "
+                "[Readers: %(reader_num)s] [Writers: %(writer_num)s] "
                 "[DelayedCalls: %(delayed_num)s]" % {
                     "client_num": len(clients),
                     "http_conn_num": http_conn_num,

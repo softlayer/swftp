@@ -1,4 +1,6 @@
 """
+This file defines what is required for swftp-sftp to work with twistd.
+
 See COPYING for license information.
 """
 from twisted.application import internet
@@ -24,7 +26,7 @@ def get_config(config_path, overrides):
     c = ConfigParser.ConfigParser(defaults)
     c.add_section('sftp')
     c.read([config_path, '/etc/swift/swftp.conf',
-        os.path.expanduser('~/.swftp.cfg')])
+           os.path.expanduser('~/.swftp.cfg')])
     for k, v in overrides.iteritems():
         if v:
             c.set('sftp', k, v)
@@ -44,7 +46,7 @@ class Options(usage.Options):
         ["host", "h", None, "IP to bind to."],
         ["priv_key", "priv-key", None, "Private Key Location."],
         ["pub_key", "pub-key", None, "Public Key Location."],
-        ]
+    ]
 
 
 def makeService(options):
@@ -71,10 +73,8 @@ def makeService(options):
 
     c = get_config(options['config_file'], options)
     pool = HTTPConnectionPool(reactor, persistent=True)
-    pool.maxPersistentPerHost = c.getint('sftp',
-        'num_persistent_connections')
-    pool.cachedConnectionTimeout = c.getint('sftp',
-        'connection_timeout')
+    pool.maxPersistentPerHost = c.getint('sftp', 'num_persistent_connections')
+    pool.cachedConnectionTimeout = c.getint('sftp', 'connection_timeout')
 
     authdb = SwiftBasedAuthDB(auth_url=c.get('sftp', 'auth_url'), pool=pool)
 
@@ -100,5 +100,5 @@ def makeService(options):
     os.environ['TZ'] = 'GMT'
     time.tzset()
 
-    return internet.TCPServer(c.getint('sftp', 'port'), sshfactory,
-        interface=c.get('sftp', 'host'))
+    return internet.TCPServer(
+        c.getint('sftp', 'port'), sshfactory, interface=c.get('sftp', 'host'))

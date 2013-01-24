@@ -23,7 +23,8 @@ setup(
         'pyopenssl',
         'pycrypto',
         'pyasn1',
-        ],
+    ],
+    zip_safe=False,
     classifiers=[
         'Environment :: Console',
         'Programming Language :: Python',
@@ -32,8 +33,8 @@ setup(
         'Framework :: Twisted',
         'License :: OSI Approved :: MIT License',
         'Topic :: Internet :: File Transfer Protocol (FTP)',
-        ],
-    )
+    ],
+)
 
 # Make Twisted regenerate the dropin.cache, if possible.  This is necessary
 # because in a site-wide install, dropin.cache cannot be rewritten by

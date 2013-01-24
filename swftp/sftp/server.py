@@ -1,4 +1,6 @@
 """
+This file contains the primary server code for the SFTP server.
+
 See COPYING for license information.
 """
 from zope import interface
@@ -22,7 +24,7 @@ from swftp.swiftfilesystem import SwiftFileSystem, swift_stat, obj_to_path
 
 
 class SwiftSession:
-    "Barebones Session that closes when a client tries to open a shell"
+    " Barebones Session that closes when a client tries to open a shell "
     interface.implements(ISession)
 
     def __init__(self, avatar):
@@ -54,7 +56,7 @@ class SwiftFileTransferServer(FileTransferServer):
         fileObj.session = self.transport.session
         FileTransferServer._cbOpenFile(self, fileObj, requestId)
 
-    # This is overridden because Flow was sending data that looks to be invalid.
+    # This is overridden because Flow was sending data that looks to be invalid
     def packet_REALPATH(self, data):
         requestId = data[:4]
         data = data[4:]
@@ -66,6 +68,7 @@ class SwiftFileTransferServer(FileTransferServer):
 
 
 class SwiftSSHServerTransport(SSHServerTransport):
+    # Overridden to set the version string.
     version = 'SwFTP'
     ourVersionString = 'SSH-2.0-SwFTP'
 
@@ -211,6 +214,6 @@ class SFTPServerForSwiftConchUser:
         # print "extendedRequest(%s, %s)" % (extName, extData)
         raise NotImplementedError
 
-components.registerAdapter(SFTPServerForSwiftConchUser, SwiftSFTPAvatar,
-    ISFTPServer)
+components.registerAdapter(
+    SFTPServerForSwiftConchUser, SwiftSFTPAvatar, ISFTPServer)
 components.registerAdapter(SwiftSession, SwiftSFTPAvatar, ISession)

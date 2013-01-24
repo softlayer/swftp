@@ -10,6 +10,11 @@ from swftp.utils import user_agent
 
 
 class SwiftBasedAuthDB:
+    """
+        Swift-based authentication.
+
+        Implements twisted.cred.ICredentialsChecker
+    """
     implements(checkers.ICredentialsChecker)
 
     def __init__(self, auth_url=None, pool=None):
@@ -17,8 +22,8 @@ class SwiftBasedAuthDB:
         self.pool = pool
 
     credentialInterfaces = (
-                credentials.IUsernamePassword,
-            )
+        credentials.IUsernamePassword,
+    )
 
     def _after_auth(self, result, connection):
         return connection
@@ -26,8 +31,8 @@ class SwiftBasedAuthDB:
     def requestAvatarId(self, c):
         creds = credentials.IUsernamePassword(c, None)
         if creds is not None:
-            conn = SwiftConnection(self.auth_url, creds.username,
-                creds.password, pool=self.pool)
+            conn = SwiftConnection(
+                self.auth_url, creds.username, creds.password, pool=self.pool)
             conn.user_agent = user_agent
             d = conn.authenticate()
             d.addCallback(self._after_auth, conn)
