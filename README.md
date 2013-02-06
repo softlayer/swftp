@@ -35,9 +35,8 @@ The SFTP requires a bit of setup the first time.
 
 You'll need to create a public/private key pair for SSH and move them to the /etc/swift directory (configurable).
 ```
-$ ckeygen -t rsa -f id_rsa
 $ mkdir /etc/swift
-$ mv id_rsa id_rsa.pub /etc/swift
+$ ssh-keygen -h -b 2048 -N "" -t rsa -f /etc/swift/id_rsa
 ```
 
 After placing the required files, the command to start the server is similar to the FTP one.
