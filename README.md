@@ -122,7 +122,7 @@ Caveats
 * You cannot create top-level files, just directories (because the top level are containers).
 * You cannot rename any non-empty directory.
 * No recursive delete. Most clients will explicitly delete each file/directory recursively anyway.
-* Fake-directories and real objects of the same name will simply display the directory. A lot of clients actually explode if a directory listing has duplicates.
+* Fake-directories and real objects of the same name will simply display the directory. A lot of clients [actually explode](http://gifsoup.com/webroot/animatedgifs2/1095919_o.gif) if a directory listing has duplicates.
 
 
 Organization
