@@ -12,9 +12,11 @@ except:
 
 setup(
     name=name,
-    version='1.0.0',
+    version='1.0.1',
     author='Kevin McDonald',
     author_email='kmcdonald@softlayer.com',
+    license='MIT',
+    url='https://github.com/softlayer/swftp',
     description=short_description,
     long_description=long_description,
     packages=['swftp', 'swftp/sftp', 'swftp/ftp', 'twisted.plugins'],
@@ -23,6 +25,17 @@ setup(
         'pyopenssl',
         'pycrypto',
         'pyasn1',
+    ],
+    entry_points={
+        'console_scripts': ['swftp-ftp = swftp.ftp.service:run',
+                            'swftp-sftp = swftp.sftp.service:run'],
+    },
+    package_data={
+        'twisted.plugins': ['twisted/plugins/swftp_ftp.py',
+                            'twisted/plugins/swftp_sftp.py']},
+    data_files=[
+        ('', ['README.md']),
+        ('/etc/swftp', ['etc/swftp/swftp.conf']),
     ],
     zip_safe=False,
     classifiers=[

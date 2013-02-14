@@ -33,10 +33,10 @@ $ twistd swftp-ftp -a http://127.0.0.1:8080/auth/v1.0
 The SFTP requires a bit of setup the first time.
 
 
-You'll need to create a public/private key pair for SSH and move them to the /etc/swift directory (configurable).
+You'll need to create a public/private key pair for SSH and move them to the /etc/swftp directory (configurable).
 ```
-$ mkdir /etc/swift
-$ ssh-keygen -h -b 2048 -N "" -t rsa -f /etc/swift/id_rsa
+$ mkdir /etc/swftp
+$ ssh-keygen -h -b 2048 -N "" -t rsa -f /etc/swftp/id_rsa
 ```
 
 After placing the required files, the command to start the server is similar to the FTP one.
@@ -55,7 +55,7 @@ $twistd swftp-sftp --help
 Usage: twistd [options] swftp-sftp [options]
 Options:
   -c, --config_file=  Location of the swftp config file. [default:
-                      /etc/swift/swftp.conf]
+                      /etc/swftp/swftp.conf]
   -a, --auth_url=     Auth Url to use. Defaults to the config file value if it
                       exists.[default: http://127.0.0.1:8080/auth/v1.0]
   -p, --port=         Port to bind to.
@@ -72,7 +72,7 @@ twistd swftp-ftp --help
 Usage: twistd [options] swftp-ftp [options]
 Options:
   -c, --config_file=  Location of the swftp config file. [default:
-                      /etc/swift/swftp.conf]
+                      /etc/swftp/swftp.conf]
   -a, --auth_url=     Auth Url to use. Defaults to the config file value if it
                       exists. [default: http://127.0.0.1:8080/auth/v1.0]
   -p, --port=         Port to bind to.
@@ -95,7 +95,7 @@ Options:
 ```
 
 ### Config File
-The default location for the config file is /etc/swift/swftp.conf.
+The default location for the config file is /etc/swftp/swftp.conf.
 
 Here is an example swftp.conf with all defaults:
 ```
@@ -103,8 +103,8 @@ Here is an example swftp.conf with all defaults:
 auth_url = http://127.0.0.1:8080/auth/v1.0
 host = 0.0.0.0
 port = 5022
-priv_key = /etc/swift/id_rsa
-pub_key = /etc/swift/id_rsa.pub
+priv_key = /etc/swftp/id_rsa
+pub_key = /etc/swftp/id_rsa.pub
 num_persistent_connections = 4
 connection_timeout = 240
 

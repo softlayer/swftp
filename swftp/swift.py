@@ -13,16 +13,13 @@ from twisted.internet.protocol import Protocol
 from twisted.web.http_headers import Headers
 from twisted.web import error
 from twisted.web.iweb import IBodyProducer
+from twisted.web._newclient import ResponseDone
+from twisted.web.http import PotentialDataLoss
 
 from zope.interface import implements
 
-import urllib
-import urlparse
 import json
 from urllib import quote as _quote
-
-from twisted.web._newclient import ResponseDone
-from twisted.web.http import PotentialDataLoss
 
 
 class StringProducer(object):

@@ -1,7 +1,6 @@
 """
 See COPYING for license information.
 """
-from ftplib import FTP
 import hashlib
 import unittest
 import os
@@ -22,7 +21,7 @@ utf8_chars = u'\uF10F\uD20D\uB30B\u9409\u8508\u5605\u3703\u1801'\
 
 def get_config():
     config_file = os.environ.get('SWIFT_TEST_CONFIG_FILE',
-                                 '/etc/swift/test.conf')
+                                 '/etc/swftp/test.conf')
     section = 'func_test'
     config = ConfigParser.ConfigParser()
     config.read(config_file)
@@ -86,7 +85,8 @@ def upload_file(swift, container, path, src_path, md5):
         resp, body = result
         assert md5 == resp.headers['etag']
 
-    d = swift.put_object(container, path, body=FileBodyProducer(open(src_path)))
+    d = swift.put_object(
+        container, path, body=FileBodyProducer(open(src_path)))
     d.addCallback(cb)
     return d
 
@@ -108,7 +108,8 @@ def remove_test_data(swift, prefix):
         r, listing = result
         dl = []
         for obj in listing:
-            dl.append(swift.delete_object(container, obj['name'].encode('utf-8')))
+            dl.append(swift.delete_object(
+                container, obj['name'].encode('utf-8')))
         d = DeferredList(dl, fireOnOneErrback=True)
         d.addCallback(cb_delete_container, container)
         return d
@@ -119,7 +120,8 @@ def remove_test_data(swift, prefix):
         for container in listing:
             if container['name'].startswith(prefix):
                 d = swift.get_container(container['name'].encode('utf-8'))
-                d.addCallback(cb_list_delete_container,
+                d.addCallback(
+                    cb_list_delete_container,
                     container['name'].encode('utf-8'))
                 dl.append(d)
 

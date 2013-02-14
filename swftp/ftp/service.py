@@ -4,12 +4,27 @@ This file defines what is required for swftp-ftp to work with twistd.
 See COPYING for license information.
 """
 from twisted.application import internet
-from twisted.python import usage
+from twisted.python import usage, log
 from twisted.internet import reactor
 
 import ConfigParser
 import signal
 import os
+import sys
+
+
+def run():
+    options = Options()
+    try:
+        options.parseOptions(sys.argv[1:])
+    except usage.UsageError, errortext:
+        print '%s: %s' % (sys.argv[0], errortext)
+        print '%s: Try --help for usage details.' % (sys.argv[0])
+        sys.exit(1)
+    log.startLogging(sys.stdout)
+    s = makeService(options)
+    s.startService()
+    reactor.run()
 
 
 def get_config(config_path, overrides):
@@ -24,7 +39,7 @@ def get_config(config_path, overrides):
     }
     c = ConfigParser.ConfigParser(defaults)
     c.add_section('ftp')
-    c.read([config_path, '/etc/swift/swftp.conf',
+    c.read([config_path, '/etc/swftp/swftp.conf',
            os.path.expanduser('~/.swftp.cfg')])
     for k, v in overrides.iteritems():
         if v:
@@ -36,7 +51,7 @@ class Options(usage.Options):
     "Defines Command-line options for the swftp-ftp service"
     optFlags = []
     optParameters = [
-        ["config_file", "c", "/etc/swift/swftp.conf",
+        ["config_file", "c", "/etc/swftp/swftp.conf",
             "Location of the swftp config file."],
         ["auth_url", "a", None,
             "Auth Url to use. Defaults to the config file value if it exists. "
@@ -48,7 +63,7 @@ class Options(usage.Options):
 
 def makeService(options):
     """
-    Makes a new swift- ftp service. The only option is the config file
+    Makes a new swftp-ftp service. The only option is the config file
     location. The config file has the following options:
      - host
      - port

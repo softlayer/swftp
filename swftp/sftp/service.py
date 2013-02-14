@@ -4,13 +4,28 @@ This file defines what is required for swftp-sftp to work with twistd.
 See COPYING for license information.
 """
 from twisted.application import internet
-from twisted.python import usage
+from twisted.python import usage, log
 from twisted.internet import reactor
 
 import ConfigParser
 import signal
 import os
+import sys
 import time
+
+
+def run():
+    options = Options()
+    try:
+        options.parseOptions(sys.argv[1:])
+    except usage.UsageError, errortext:
+        print '%s: %s' % (sys.argv[0], errortext)
+        print '%s: Try --help for usage details.' % (sys.argv[0])
+        sys.exit(1)
+    log.startLogging(sys.stdout)
+    s = makeService(options)
+    s.startService()
+    reactor.run()
 
 
 def get_config(config_path, overrides):
@@ -18,14 +33,14 @@ def get_config(config_path, overrides):
         'auth_url': 'http://127.0.0.1:8080/auth/v1.0',
         'host': '0.0.0.0',
         'port': '5022',
-        'priv_key': '/etc/swift/id_rsa',
-        'pub_key': '/etc/swift/id_rsa.pub',
+        'priv_key': '/etc/swftp/id_rsa',
+        'pub_key': '/etc/swftp/id_rsa.pub',
         'num_persistent_connections': '4',
         'connection_timeout': '240'
     }
     c = ConfigParser.ConfigParser(defaults)
     c.add_section('sftp')
-    c.read([config_path, '/etc/swift/swftp.conf',
+    c.read([config_path, '/etc/swftp/swftp.conf',
            os.path.expanduser('~/.swftp.cfg')])
     for k, v in overrides.iteritems():
         if v:
@@ -37,7 +52,7 @@ class Options(usage.Options):
     "Defines Command-line options for the swftp-sftp service"
     optFlags = []
     optParameters = [
-        ["config_file", "c", "/etc/swift/swftp.conf",
+        ["config_file", "c", "/etc/swftp/swftp.conf",
             "Location of the swftp config file."],
         ["auth_url", "a", None,
             "Auth Url to use. Defaults to the config file value if it exists."
