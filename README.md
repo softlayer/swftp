@@ -14,10 +14,11 @@ Getting Started
 ---------------
 ### Installing
 Install via pip:
-Note: If you don't have pip here's how to [install it](http://www.pip-installer.org/en/latest/installing.html)
+
 ```bash
 $ pip install swftp
 ```
+Note: If you don't have pip [here's how to install it](http://www.pip-installer.org/en/latest/installing.html).
 
 Install from source:
 ```bash
