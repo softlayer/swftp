@@ -1,5 +1,6 @@
 #!/usr/bin/python
 from setuptools import setup
+import sys
 
 name = 'swftp'
 
@@ -10,9 +11,14 @@ try:
 except:
     pass
 
+requires = ['twisted >= 12', 'pyopenssl', 'pycrypto', 'pyasn1']
+
+if sys.version_info < (2, 7):
+    requires.append('ordereddict')
+
 setup(
     name=name,
-    version='1.0.1',
+    version='1.0.2',
     author='Kevin McDonald',
     author_email='kmcdonald@softlayer.com',
     license='MIT',
@@ -20,12 +26,7 @@ setup(
     description=short_description,
     long_description=long_description,
     packages=['swftp', 'swftp/sftp', 'swftp/ftp', 'twisted.plugins'],
-    install_requires=[
-        'twisted >= 12',
-        'pyopenssl',
-        'pycrypto',
-        'pyasn1',
-    ],
+    install_requires=requires,
     entry_points={
         'console_scripts': ['swftp-ftp = swftp.ftp.service:run',
                             'swftp-sftp = swftp.sftp.service:run'],

@@ -9,7 +9,7 @@ import stat
 import os
 import urlparse
 import time
-from collections import OrderedDict
+
 from twisted.internet import defer, reactor, task
 from twisted.internet.defer import succeed
 from twisted.web.iweb import IBodyProducer, UNKNOWN_LENGTH
@@ -17,6 +17,7 @@ from twisted.internet.interfaces import IConsumer
 
 from zope import interface
 
+from swftp.utils import OrderedDict
 from swftp.utils import try_datetime_parse
 from swftp.swift import NotFound, Conflict
 

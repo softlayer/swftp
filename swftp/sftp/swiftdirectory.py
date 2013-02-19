@@ -3,8 +3,7 @@ See COPYING for license information.
 """
 from twisted.conch import ls
 
-from collections import OrderedDict
-
+from swftp.utils import OrderedDict
 from swftp.swiftfilesystem import swift_stat
 
 

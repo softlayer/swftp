@@ -14,19 +14,23 @@ Getting Started
 ---------------
 ### Installing
 Install via pip:
-```
+Note: If you don't have pip here's how to [install it](http://www.pip-installer.org/en/latest/installing.html)
+```bash
 $ pip install swftp
 ```
 
 Install from source:
-```
+```bash
 $ python setup.py install
 ```
 
 ### Start FTP Server
 To run the FTP server with twistd, simply run this command. 
-```
-$ twistd swftp-ftp -a http://127.0.0.1:8080/auth/v1.0
+```bash
+$ swftp-ftp -a http://127.0.0.1:8080/auth/v1.0
+2013-02-18 16:28:50-0600 [-] Log opened.
+2013-02-18 16:28:50-0600 [-] FTPFactory starting on 5021
+2013-02-18 16:28:50-0600 [-] Starting factory <twisted.protocols.ftp.FTPFactory instance at 0x1103fcf80>
 ```
 
 ### Start SFTP Server
@@ -34,14 +38,16 @@ The SFTP requires a bit of setup the first time.
 
 
 You'll need to create a public/private key pair for SSH and move them to the /etc/swftp directory (configurable).
-```
+```bash
 $ mkdir /etc/swftp
 $ ssh-keygen -h -b 2048 -N "" -t rsa -f /etc/swftp/id_rsa
 ```
 
 After placing the required files, the command to start the server is similar to the FTP one.
-```
-$ twistd swftp-sftp -a http://127.0.0.1:8080/auth/v1.0
+```bash
+$ swftp-sftp -a http://127.0.0.1:8080/auth/v1.0
+2013-02-18 16:29:14-0600 [-] Log opened.
+2013-02-18 22:29:14+0000 [-] SSHFactory starting on 5022
 ```
 
 Configuration
@@ -49,27 +55,10 @@ Configuration
 ### Command Line
 The command line configuration allows you to speficfy a custom OpenStack Swift Auth URL, as well as the location of the config file (detailed later).
 
-SFTP Command-line options:
-```
-$twistd swftp-sftp --help
-Usage: twistd [options] swftp-sftp [options]
-Options:
-  -c, --config_file=  Location of the swftp config file. [default:
-                      /etc/swftp/swftp.conf]
-  -a, --auth_url=     Auth Url to use. Defaults to the config file value if it
-                      exists.[default: http://127.0.0.1:8080/auth/v1.0]
-  -p, --port=         Port to bind to.
-  -h, --host=         IP to bind to.
-      --priv_key=     Private Key Location.
-      --pub_key=      Public Key Location.
-      --version       Display Twisted version and exit.
-      --help          Display this help and exit.
-```
-
 FTP Command-line options:
-```
-twistd swftp-ftp --help
-Usage: twistd [options] swftp-ftp [options]
+```bash
+$ swftp-ftp --help
+Usage: swftp-ftp [options]
 Options:
   -c, --config_file=  Location of the swftp config file. [default:
                       /etc/swftp/swftp.conf]
@@ -81,17 +70,21 @@ Options:
       --help          Display this help and exit.
 ```
 
-
-In addition to the app-specific options twistd adds options. Below are some of the most common options. To see all of them use `twistd --help`.
-```
-Usage: twistd [options]
+SFTP Command-line options:
+```bash
+$ swftp-sftp --help
+Usage: swftp-sftp [options]
 Options:
-  -n, --nodaemon       don't daemonize, don't use default umask of 0077
-      --syslog         Log to syslog, not to file
-  -l, --logfile=       log to a specified file, - for stdout
-      --pidfile=       Name of the pidfile [default: twistd.pid]
-  -u, --uid=           The uid to run as.
-  -g, --gid=           The gid to run as.
+  -c, --config_file=  Location of the swftp config file. [default:
+                      /etc/swftp/swftp.conf]
+  -a, --auth_url=     Auth Url to use. Defaults to the config file value if it
+                      exists.[default: http://127.0.0.1:8080/auth/v1.0]
+  -p, --port=         Port to bind to.
+  -h, --host=         IP to bind to.
+      --priv_key=     Private Key Location.
+      --pub_key=      Public Key Location.
+      --version       Display Twisted version and exit.
+      --help          Display this help and exit.
 ```
 
 ### Config File
@@ -133,7 +126,22 @@ Organization
   * ftp/: FTP server
   * sftp/: SFTP server
   * test/: Unit and functional tests
-* twisted/: For Twisted Plugin System
+* twisted/: For the Twisted Plugin System
+
+Packaging/Creating Init Scripts
+-------------------------------
+Packaged with SwFTP are a set of example init scripts, upstart scripts.
+
+They are all located within the /etc/ directory.
+
+* Upstart
+    * /etc/init/swftp-ftp.conf
+    * /etc/init/swftp-sftp.conf
+* init.d
+    * /etc/init/swftp-ftp
+    * /etc/init/swftp-sftp
+* Supervisor
+    * /etc/supervisor/conf.d/swftp.conf
 
 
 License

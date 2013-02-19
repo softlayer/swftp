@@ -6,8 +6,12 @@ import signal
 import twisted.internet.tcp
 from twisted.python import log
 from twisted.internet import reactor
+try:
+    from collections import OrderedDict
+except ImportError:
+    from ordereddict import OrderedDict  # NOQA
 
-version = '1.0.0'
+version = '1.0.2'
 user_agent = 'SwFTP v%s' % version
 
 DATE_FORMATS = [
