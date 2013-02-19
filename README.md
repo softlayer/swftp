@@ -5,10 +5,17 @@ SwFTP is an FTP and SFTP interface for Openstack Object Storage (swift). It will
 Features
 --------
 * Configurable auth endpoint to use any OpenStack Swift installation.
-* Configurable welcome message for the FTP server.
-* Support for HTTPS communication to the backend OpenStack Object Storage cluster.
 * Server-wide Configurable HTTP Connection Pool for Swift Communications (size and timeout).
+* Support for HTTPS communication to the backend OpenStack Object Storage cluster.
+* Configurable welcome message for the FTP server.
 * Simple Installation (pip install swftp).
+
+Requirements
+------------
+* Python 2.6-2.7
+* OpenSSL/pycrypto
+* Twisted/Twisted-Conch
+* pyasn1
 
 Getting Started
 ---------------
@@ -26,7 +33,7 @@ $ python setup.py install
 ```
 
 ### Start FTP Server
-To run the FTP server with twistd, simply run this command. 
+To run the FTP server, simply run this command. 
 ```bash
 $ swftp-ftp -a http://127.0.0.1:8080/auth/v1.0
 2013-02-18 16:28:50-0600 [-] Log opened.
@@ -38,7 +45,7 @@ $ swftp-ftp -a http://127.0.0.1:8080/auth/v1.0
 The SFTP requires a bit of setup the first time.
 
 
-You'll need to create a public/private key pair for SSH and move them to the /etc/swftp directory (configurable).
+You'll need to create a public/private key pair for SSH and move them to the /etc/swftp directory (this location is configurable).
 ```bash
 $ mkdir /etc/swftp
 $ ssh-keygen -h -b 2048 -N "" -t rsa -f /etc/swftp/id_rsa
