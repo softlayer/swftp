@@ -143,9 +143,10 @@ class SwiftConnection:
         self.api_key = api_key
         self.storage_url = None
         self.auth_token = None
-        contextFactory = WebClientContextFactory()
-        contextFactory.noisy = False
-        self.agent = Agent(reactor, contextFactory, pool=pool)
+        self.contextFactory = WebClientContextFactory()
+        self.contextFactory.noisy = False
+        self.pool = pool
+        # self.agent = Agent(reactor, contextFactory, pool=pool)
 
     def make_request(self, method, path, params=None, headers=None, body=None,
                      body_reader=None):
@@ -165,7 +166,8 @@ class SwiftConnection:
             for k, v in params.iteritems():
                 param_lst.append("%s=%s" % (k, v))
             url = "%s?%s" % (url, "&".join(param_lst))
-        d = self.agent.request(method, url, Headers(h), body)
+        agent = Agent(reactor, self.contextFactory, pool=self.pool)
+        d = agent.request(method, url, Headers(h), body)
         return d
 
     def after_authenticate(self, result):
@@ -181,7 +183,8 @@ class SwiftConnection:
             'X-Auth-Key': [self.api_key],
         }
 
-        d = self.agent.request('GET', self.auth_url, Headers(headers))
+        agent = Agent(reactor, self.contextFactory, pool=self.pool)
+        d = agent.request('GET', self.auth_url, Headers(headers))
         d.addCallback(cb_recv_resp, load_body=True)
         d.addCallback(self.after_authenticate)
         return d

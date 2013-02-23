@@ -6,7 +6,7 @@ from twisted.internet import defer
 from twisted.cred import checkers, error, credentials
 
 from swftp.swift import SwiftConnection, UnAuthenticated
-from swftp.utils import user_agent
+from swftp.utils import USER_AGENT
 
 
 class SwiftBasedAuthDB:
@@ -33,7 +33,7 @@ class SwiftBasedAuthDB:
         if creds is not None:
             conn = SwiftConnection(
                 self.auth_url, creds.username, creds.password, pool=self.pool)
-            conn.user_agent = user_agent
+            conn.user_agent = USER_AGENT
             d = conn.authenticate()
             d.addCallback(self._after_auth, conn)
             d.addErrback(failed_auth)

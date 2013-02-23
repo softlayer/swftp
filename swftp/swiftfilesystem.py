@@ -84,6 +84,7 @@ class SwiftWriteFile(object):
 
     def __init__(self, length=None):
         self.length = length or UNKNOWN_LENGTH
+        self.started = defer.Deferred()
         self.finished = defer.Deferred()
         self.consumer = None  # is set later
         self.producer = None  # is set later
@@ -106,6 +107,7 @@ class SwiftWriteFile(object):
         def stopped(reason):
             return succeed(None)
         self.finished.addCallback(stopped)
+        self.started.callback(self)
         return self.finished
 
     def pauseProducing(self):

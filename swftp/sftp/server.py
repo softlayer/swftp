@@ -9,6 +9,7 @@ from twisted.conch.interfaces import ISFTPServer, ISession
 from twisted.cred import portal
 from twisted.python import components
 from twisted.internet import defer
+from twisted.python import log
 
 from twisted.conch import avatar
 from twisted.conch.ssh import session
@@ -96,11 +97,17 @@ class SFTPServerForSwiftConchUser:
         self.swiftconn = avatar.swiftconn
         self.swiftfilesystem = SwiftFileSystem(self.swiftconn)
         self.conn = avatar.conn
+        self.msg('login()')
+
+    def msg(self, msg):
+        log.msg("COMMAND: %s" % msg,
+                system="SwFTP-SFTP, (%s)" % self.swiftconn.username)
 
     def gotVersion(self, otherVersion, extData):
         return {}
 
     def openFile(self, fullpath, flags, attrs):
+        self.msg('openFile(%s, %s, %s)' % (fullpath, flags, attrs))
         f = SwiftFile(self, fullpath, flags=flags, attrs=attrs)
         d = f.checkExistance()
 
@@ -113,9 +120,11 @@ class SFTPServerForSwiftConchUser:
         return d
 
     def removeFile(self, fullpath):
+        self.msg('removeFile(%s)' % fullpath)
         return self.swiftfilesystem.removeFile(fullpath)
 
     def renameFile(self, oldpath, newpath):
+        self.msg('renameFile(%s, %s)' % (oldpath, newpath))
         d = self.swiftfilesystem.renameFile(oldpath, newpath)
 
         def errback(failure):
@@ -129,6 +138,7 @@ class SFTPServerForSwiftConchUser:
         return d
 
     def makeDirectory(self, fullpath, attrs):
+        self.msg('makeDirectory(%s, %s)' % (fullpath, attrs))
 
         def errback(failure):
             failure.trap(NotFound)
@@ -139,6 +149,7 @@ class SFTPServerForSwiftConchUser:
         return d
 
     def removeDirectory(self, fullpath):
+        self.msg('makeDirectory(%s)' % fullpath)
         d = self.swiftfilesystem.removeDirectory(fullpath)
 
         def errback(failure):
@@ -152,6 +163,7 @@ class SFTPServerForSwiftConchUser:
         return d
 
     def openDirectory(self, fullpath):
+        self.msg('openDirectory(%s)' % fullpath)
         directory = SwiftDirectory(self.swiftfilesystem, fullpath)
 
         def cb(*result):
@@ -167,6 +179,7 @@ class SFTPServerForSwiftConchUser:
         return d
 
     def getAttrs(self, fullpath, followLinks=False):
+        self.msg('getAttrs(%s)' % fullpath)
         d = self.swiftfilesystem.getAttrs(fullpath)
 
         def cb(result):
@@ -211,7 +224,6 @@ class SFTPServerForSwiftConchUser:
         return real_path
 
     def extendedRequest(self, extName, extData):
-        # print "extendedRequest(%s, %s)" % (extName, extData)
         raise NotImplementedError
 
 components.registerAdapter(

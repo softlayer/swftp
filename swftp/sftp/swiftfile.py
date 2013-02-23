@@ -7,8 +7,9 @@ See COPYING for license information.
 from zope import interface
 
 from twisted.internet import defer, task, reactor
-from twisted.conch.ssh.filetransfer import FXF_CREAT, FXF_TRUNC, SFTPError, \
-    FX_NO_SUCH_FILE, FX_FAILURE, FX_CONNECTION_LOST, FXF_WRITE
+from twisted.conch.ssh.filetransfer import (
+    FXF_CREAT, FXF_TRUNC, SFTPError, FX_NO_SUCH_FILE, FX_FAILURE,
+    FX_CONNECTION_LOST, FXF_WRITE)
 from twisted.conch.interfaces import ISFTPFile
 from twisted.internet.protocol import Protocol
 from twisted.internet.interfaces import IPushProducer
@@ -149,7 +150,7 @@ class SwiftFileSender(object):
         self.fullpath = fullpath
 
         self.write_finished = None  # Deferred that fires when finished writing
-        self._task = None  # Task loop
+        self._task = None           # Task loop
         self._done_sending = False  # Set to True when the user closes the file
         self._writeBuffer = []
 
@@ -174,7 +175,6 @@ class SwiftFileSender(object):
             self._writeBuffer.remove(buf)
 
     def _writeFlusher(self, writer):
-        writer.registerProducer(self, streaming=True)
         while True:
             if self._done_sending and len(self._writeBuffer) == 0:
                 writer.unregisterProducer()
@@ -194,6 +194,9 @@ class SwiftFileSender(object):
             finally:
                 yield
 
+    def cb_start_task(self, writer):
+        self._task = task.cooperate(self._writeFlusher(writer))
+
     def close(self):
         self._done_sending = True
         return self.write_finished
@@ -203,7 +206,8 @@ class SwiftFileSender(object):
             # If we haven't started uploading to Swift, start up that process
             self.write_finished, writer = \
                 self.swiftfilesystem.startFileUpload(self.fullpath)
-            self._task = task.cooperate(self._writeFlusher(writer))
+            writer.registerProducer(self, streaming=True)
+            writer.started.addCallback(self.cb_start_task)
             self.started = True
         d = defer.Deferred()
         self._writeBuffer.append((d, data))
@@ -220,13 +224,9 @@ class SwiftFile(object):
         self.fullpath = fullpath
         self.flags = flags
         self.attrs = attrs
-
         self.r = None
         self.w = None
-
         self.props = None
-
-        self.sent_bytes = 0
 
     def checkExistance(self):
         """

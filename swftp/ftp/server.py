@@ -10,6 +10,7 @@ from twisted.protocols.ftp import IFTPShell, IReadFile, IWriteFile, \
     IsADirectoryError
 from twisted.internet import defer
 from twisted.internet.protocol import Protocol
+from twisted.python import log
 import stat
 
 from swftp.swiftfilesystem import SwiftFileSystem, swift_stat
@@ -57,24 +58,39 @@ class SwiftFTPShell:
     def __init__(self, swiftconn):
         self.swiftconn = swiftconn
         self.swiftfilesystem = SwiftFileSystem(self.swiftconn)
+        self.msg('login()')
+
+    def msg(self, msg):
+        log.msg("COMMAND: %s" % msg,
+                system="SwFTP-FTP, (%s)" % self.swiftconn.username)
 
     def _fullpath(self, path_parts):
         return '/'.join(path_parts)
 
     def makeDirectory(self, path):
+        self.msg('makeDirectory(%s)' % path)
         fullpath = self._fullpath(path)
         return self.swiftfilesystem.makeDirectory(fullpath)
 
     def removeDirectory(self, path):
+        self.msg('removeDirectory(%s)' % path)
         fullpath = self._fullpath(path)
 
-        def errback(failure):
+        def not_found_eb(failure):
             failure.trap(NotFound)
+
+        def conflict_eb(failure):
+            failure.trap(Conflict)
+            raise CmdNotImplementedForArgError(
+                'Cannot delete non-empty directories.')
+
         d = self.swiftfilesystem.removeDirectory(fullpath)
-        d.addErrback(errback)
+        d.addErrback(not_found_eb)
+        d.addErrback(conflict_eb)
         return d
 
     def removeFile(self, path):
+        self.msg('removeFile(%s)' % path)
         fullpath = self._fullpath(path)
 
         def errback(failure):
@@ -84,6 +100,7 @@ class SwiftFTPShell:
         return d
 
     def rename(self, fromPath, toPath):
+        self.msg('rename(%s, %s)' % (fromPath, toPath))
         oldpath = self._fullpath(fromPath)
         newpath = self._fullpath(toPath)
 
@@ -99,6 +116,7 @@ class SwiftFTPShell:
         return d
 
     def access(self, path):
+        self.msg('access(%s)' % path)
         fullpath = self._fullpath(path)
 
         def cb(result):
@@ -116,6 +134,7 @@ class SwiftFTPShell:
         return d
 
     def stat(self, path, keys=()):
+        self.msg('stat(%s, keys=%s)' % (path, keys))
         fullpath = self._fullpath(path)
 
         def cb(result):
@@ -131,6 +150,7 @@ class SwiftFTPShell:
         return d
 
     def list(self, path=None, keys=()):
+        self.msg('list(%s)' % path)
         fullpath = self._fullpath(path)
 
         def cb(results):
@@ -144,6 +164,7 @@ class SwiftFTPShell:
         return d
 
     def openForReading(self, path):
+        self.msg('openForReading(%s)' % path)
         fullpath = self._fullpath(path)
 
         def cb(results):
@@ -172,7 +193,7 @@ class SwiftWriteFile:
     def receive(self):
         d, writer = self.swiftfilesystem.startFileUpload(self.fullpath)
         self.finished = d
-        return defer.succeed(writer)
+        return writer.started
 
     def close(self):
         return self.finished

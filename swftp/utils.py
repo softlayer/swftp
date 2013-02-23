@@ -11,8 +11,8 @@ try:
 except ImportError:
     from ordereddict import OrderedDict  # NOQA
 
-version = '1.0.2'
-user_agent = 'SwFTP v%s' % version
+VERSION = '1.0.3'
+USER_AGENT = 'SwFTP v%s' % VERSION
 
 DATE_FORMATS = [
     "%a, %d %b %Y %H:%M:%S %Z",

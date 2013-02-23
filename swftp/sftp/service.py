@@ -91,7 +91,7 @@ def makeService(options):
     pool.maxPersistentPerHost = c.getint('sftp', 'num_persistent_connections')
     pool.cachedConnectionTimeout = c.getint('sftp', 'connection_timeout')
 
-    authdb = SwiftBasedAuthDB(auth_url=c.get('sftp', 'auth_url'), pool=pool)
+    authdb = SwiftBasedAuthDB(auth_url=c.get('sftp', 'auth_url'))
 
     sftpportal = Portal(SwiftSFTPRealm())
     sftpportal.registerChecker(authdb)

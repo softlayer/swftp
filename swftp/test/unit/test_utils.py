@@ -3,7 +3,7 @@ See COPYING for license information.
 """
 import unittest
 
-from swftp.swift_utils import try_datetime_parse
+from swftp.utils import try_datetime_parse
 
 
 class DateTimeParseTest(unittest.TestCase):
