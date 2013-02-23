@@ -11,7 +11,7 @@ try:
 except:
     pass
 
-requires = ['twisted >= 12', 'pyopenssl', 'pycrypto', 'pyasn1']
+requires = ['twisted >= 12.1', 'pyopenssl', 'pycrypto', 'pyasn1']
 
 if sys.version_info < (2, 7):
     requires.append('ordereddict')
@@ -41,12 +41,14 @@ setup(
     zip_safe=False,
     classifiers=[
         'Environment :: Console',
-        'Programming Language :: Python',
         'Operating System :: OS Independent',
         'Environment :: No Input/Output (Daemon)',
         'Framework :: Twisted',
         'License :: OSI Approved :: MIT License',
         'Topic :: Internet :: File Transfer Protocol (FTP)',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 2.6',
+        'Programming Language :: Python :: 2.7',
     ],
 )
 

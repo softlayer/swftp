@@ -79,7 +79,6 @@ class ResponseIgnorer(Protocol):
     def makeConnection(self, transport):
         transport.stopProducing()
         self.finished.callback(None)
-        pass
 
     def dataReceived(self, bytes):
         pass
