@@ -104,5 +104,5 @@ def makeService(options):
     signal.signal(signal.SIGUSR1, print_runtime_info)
     signal.signal(signal.SIGUSR2, print_runtime_info)
 
-    return internet.TCPServer(c.getint('sftp', 'port'), ftpfactory,
+    return internet.TCPServer(c.getint('ftp', 'port'), ftpfactory,
                               interface=c.get('ftp', 'host'))
