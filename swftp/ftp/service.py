@@ -39,8 +39,16 @@ def get_config(config_path, overrides):
     }
     c = ConfigParser.ConfigParser(defaults)
     c.add_section('ftp')
-    c.read([config_path, '/etc/swftp/swftp.conf',
-           os.path.expanduser('~/.swftp.cfg')])
+    if config_path:
+        log.msg('Reading configuration from path: %s' % config_path)
+        c.read(config_path)
+    else:
+        config_paths = [
+            '/etc/swftp/swftp.conf',
+            os.path.expanduser('~/.swftp.cfg')
+        ]
+        log.msg('Reading configuration from paths: %s' % config_paths)
+        c.read(config_paths)
     for k, v in overrides.iteritems():
         if v:
             c.set('ftp', k, v)
@@ -51,8 +59,7 @@ class Options(usage.Options):
     "Defines Command-line options for the swftp-ftp service"
     optFlags = []
     optParameters = [
-        ["config_file", "c", "/etc/swftp/swftp.conf",
-            "Location of the swftp config file."],
+        ["config_file", "c", None, "Location of the swftp config file."],
         ["auth_url", "a", None,
             "Auth Url to use. Defaults to the config file value if it exists. "
             "[default: http://127.0.0.1:8080/auth/v1.0]"],
