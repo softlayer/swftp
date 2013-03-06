@@ -145,13 +145,12 @@ class SwiftConnection:
         self.contextFactory = WebClientContextFactory()
         self.contextFactory.noisy = False
         self.pool = pool
-        # self.agent = Agent(reactor, contextFactory, pool=pool)
+        # self.agent = Agent(reactor, self.contextFactory, pool=pool)
 
     def make_request(self, method, path, params=None, headers=None, body=None,
                      body_reader=None):
         h = {
             'User-Agent': [self.user_agent],
-            'X-Auth-Token': [self.auth_token],
         }
         if headers:
             for k, v in headers.iteritems():
@@ -166,8 +165,27 @@ class SwiftConnection:
                 param_lst.append("%s=%s" % (k, v))
             url = "%s?%s" % (url, "&".join(param_lst))
         agent = Agent(reactor, self.contextFactory, pool=self.pool)
-        d = agent.request(method, url, Headers(h), body)
+
+        def doRequest(ignored):
+            h['X-Auth-Token'] = [self.auth_token]
+            return agent.request(method, url, Headers(h), body)
+
+        d = doRequest(None)
+
+        def retryAuth(response):
+            if response.code == 401:
+                d_resp_recvd = Deferred()
+                response.deliverBody(ResponseIgnorer(d_resp_recvd))
+                d_resp_recvd.addCallback(self.cb_retry_auth)
+                d_resp_recvd.addCallback(doRequest)
+                return d_resp_recvd
+            return response
+        d.addCallback(retryAuth)
+
         return d
+
+    def cb_retry_auth(self, ignored):
+        return self.authenticate()
 
     def after_authenticate(self, result):
         response, body = result
@@ -181,7 +199,6 @@ class SwiftConnection:
             'X-Auth-User': [self.username],
             'X-Auth-Key': [self.api_key],
         }
-
         agent = Agent(reactor, self.contextFactory, pool=self.pool)
         d = agent.request('GET', self.auth_url, Headers(headers))
         d.addCallback(cb_recv_resp, load_body=True)

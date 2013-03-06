@@ -14,6 +14,7 @@ from twisted.internet import defer, reactor, task
 from twisted.internet.defer import succeed
 from twisted.web.iweb import IBodyProducer, UNKNOWN_LENGTH
 from twisted.internet.interfaces import IConsumer
+from twisted.python import log
 
 from zope import interface
 
@@ -99,6 +100,7 @@ class SwiftWriteFile(object):
 
     def write(self, data):
         self.consumer.write(data)
+        log.msg(metric='ingress_bytes', count=len(data))
 
     # IBodyProducer
     def startProducing(self, consumer):

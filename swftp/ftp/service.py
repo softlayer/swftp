@@ -3,7 +3,7 @@ This file defines what is required for swftp-ftp to work with twistd.
 
 See COPYING for license information.
 """
-from twisted.application import internet
+from twisted.application import internet, service
 from twisted.python import usage, log
 from twisted.internet import reactor
 
@@ -36,6 +36,10 @@ def get_config(config_path, overrides):
         'connection_timeout': '240',
         'welcome_message': 'Welcome to SwFTP'
                            ' - an FTP interface for Openstack Swift',
+        'log_statsd_host': '',
+        'log_statsd_port': '8125',
+        'log_statsd_sample_rate': '10.0',
+        'log_statsd_metric_prefix': '',
     }
     c = ConfigParser.ConfigParser(defaults)
     c.add_section('ftp')
@@ -88,6 +92,20 @@ def makeService(options):
     from swftp.utils import print_runtime_info
 
     c = get_config(options['config_file'], options)
+    ftp_service = service.MultiService()
+
+    # Add statsd service
+    if c.get('ftp', 'log_statsd_host'):
+        try:
+            from swftp.statsd import makeService as makeStatsdService
+            makeStatsdService(
+                c.get('ftp', 'log_statsd_host'),
+                c.getint('ftp', 'log_statsd_port'),
+                sample_rate=c.getfloat('ftp', 'log_statsd_sample_rate'),
+                prefix=c.get('ftp', 'log_statsd_metric_prefix')
+            ).setServiceParent(ftp_service)
+        except ImportError:
+            log.err('Missing Statsd Module. Requires "txstatsd"')
 
     pool = HTTPConnectionPool(reactor, persistent=True)
     pool.maxPersistentPerHost = c.getint('ftp', 'num_persistent_connections')
@@ -104,5 +122,8 @@ def makeService(options):
     signal.signal(signal.SIGUSR1, print_runtime_info)
     signal.signal(signal.SIGUSR2, print_runtime_info)
 
-    return internet.TCPServer(c.getint('ftp', 'port'), ftpfactory,
-                              interface=c.get('ftp', 'host'))
+    internet.TCPServer(
+        c.getint('ftp', 'port'),
+        ftpfactory,
+        interface=c.get('ftp', 'host')).setServiceParent(ftp_service)
+    return ftp_service

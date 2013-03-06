@@ -14,8 +14,15 @@ from twisted.conch.interfaces import ISFTPFile
 from twisted.internet.protocol import Protocol
 from twisted.internet.interfaces import IPushProducer
 from twisted.internet.error import ConnectionLost
+from twisted.python import log
 
 from swftp.swift import NotFound
+
+
+def cb_log_egress_bytes(result):
+    if result:
+        log.msg(metric='egress_bytes', count=len(result))
+    return result
 
 
 class SwiftFileReceiver(Protocol):
@@ -187,7 +194,7 @@ class SwiftFileSender(object):
             try:
                 d, data = self._writeBuffer.pop(0)
                 writer.write(data)
-                d.callback(None)
+                d.callback(len(data))
                 yield
             except IndexError:
                 pass
@@ -285,6 +292,7 @@ class SwiftFile(object):
             self.swiftfilesystem.startFileDownload(
                 self.fullpath, self.r, offset=offset)
         d = self.r.read(offset, length)
+        d.addCallback(cb_log_egress_bytes)
         return d
 
     def getAttrs(self):

@@ -7,9 +7,8 @@ from zope import interface
 
 from twisted.conch.interfaces import ISFTPServer, ISession
 from twisted.cred import portal
-from twisted.python import components
+from twisted.python import components, log
 from twisted.internet import defer
-from twisted.python import log
 
 from twisted.conch import avatar
 from twisted.conch.ssh import session
@@ -86,7 +85,14 @@ class SwiftSFTPAvatar(avatar.ConchUser):
         self.cwd = ''
 
     def logout(self):
+        self.log_command('logout')
         self.swiftconn = None
+
+    def log_command(self, command, *args):
+        arg_list = ', '.join(str(arg) for arg in args)
+        log.msg("COMMAND: %s(%s)" % (command, arg_list),
+                system="SwFTP-SFTP, (%s)" % self.swiftconn.username,
+                metric='command.%s' % command)
 
 
 class SFTPServerForSwiftConchUser:
@@ -96,18 +102,18 @@ class SFTPServerForSwiftConchUser:
     def __init__(self, avatar):
         self.swiftconn = avatar.swiftconn
         self.swiftfilesystem = SwiftFileSystem(self.swiftconn)
+        self.avatar = avatar
         self.conn = avatar.conn
-        self.msg('login()')
+        self.log_command('login')
 
-    def msg(self, msg):
-        log.msg("COMMAND: %s" % msg,
-                system="SwFTP-SFTP, (%s)" % self.swiftconn.username)
+    def log_command(self, *args, **kwargs):
+        return self.avatar.log_command(*args, **kwargs)
 
     def gotVersion(self, otherVersion, extData):
         return {}
 
     def openFile(self, fullpath, flags, attrs):
-        self.msg('openFile(%s, %s, %s)' % (fullpath, flags, attrs))
+        self.log_command('openFile', fullpath, flags, attrs)
         f = SwiftFile(self, fullpath, flags=flags, attrs=attrs)
         d = f.checkExistance()
 
@@ -120,11 +126,11 @@ class SFTPServerForSwiftConchUser:
         return d
 
     def removeFile(self, fullpath):
-        self.msg('removeFile(%s)' % fullpath)
+        self.log_command('removeFile', fullpath)
         return self.swiftfilesystem.removeFile(fullpath)
 
     def renameFile(self, oldpath, newpath):
-        self.msg('renameFile(%s, %s)' % (oldpath, newpath))
+        self.log_command('renameFile', oldpath, newpath)
         d = self.swiftfilesystem.renameFile(oldpath, newpath)
 
         def errback(failure):
@@ -138,7 +144,7 @@ class SFTPServerForSwiftConchUser:
         return d
 
     def makeDirectory(self, fullpath, attrs):
-        self.msg('makeDirectory(%s, %s)' % (fullpath, attrs))
+        self.log_command('makeDirectory', fullpath, attrs)
 
         def errback(failure):
             failure.trap(NotFound)
@@ -149,13 +155,13 @@ class SFTPServerForSwiftConchUser:
         return d
 
     def removeDirectory(self, fullpath):
-        self.msg('makeDirectory(%s)' % fullpath)
+        self.log_command('removeDirectory', fullpath)
         d = self.swiftfilesystem.removeDirectory(fullpath)
 
         def errback(failure):
             failure.trap(NotFound, Conflict)
             if failure.check(NotFound):
-                raise SFTPError(FX_FAILURE, 'Directory Not Found')
+                return
             if failure.check(Conflict):
                 raise SFTPError(FX_FAILURE, 'Directory Not Empty')
 
@@ -163,7 +169,7 @@ class SFTPServerForSwiftConchUser:
         return d
 
     def openDirectory(self, fullpath):
-        self.msg('openDirectory(%s)' % fullpath)
+        self.log_command('openDirectory', fullpath)
         directory = SwiftDirectory(self.swiftfilesystem, fullpath)
 
         def cb(*result):
@@ -179,7 +185,7 @@ class SFTPServerForSwiftConchUser:
         return d
 
     def getAttrs(self, fullpath, followLinks=False):
-        self.msg('getAttrs(%s)' % fullpath)
+        self.log_command('getAttrs', fullpath)
         d = self.swiftfilesystem.getAttrs(fullpath)
 
         def cb(result):

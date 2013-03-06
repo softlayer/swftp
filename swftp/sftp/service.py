@@ -3,7 +3,7 @@ This file defines what is required for swftp-sftp to work with twistd.
 
 See COPYING for license information.
 """
-from twisted.application import internet
+from twisted.application import internet, service
 from twisted.python import usage, log
 from twisted.internet import reactor
 
@@ -36,7 +36,11 @@ def get_config(config_path, overrides):
         'priv_key': '/etc/swftp/id_rsa',
         'pub_key': '/etc/swftp/id_rsa.pub',
         'num_persistent_connections': '4',
-        'connection_timeout': '240'
+        'connection_timeout': '240',
+        'log_statsd_host': '',
+        'log_statsd_port': '8125',
+        'log_statsd_sample_rate': '10.0',
+        'log_statsd_metric_prefix': '',
     }
     c = ConfigParser.ConfigParser(defaults)
     c.add_section('sftp')
@@ -98,6 +102,25 @@ def makeService(options):
     pool.maxPersistentPerHost = c.getint('sftp', 'num_persistent_connections')
     pool.cachedConnectionTimeout = c.getint('sftp', 'connection_timeout')
 
+    sftp_service = service.MultiService()
+
+    # ensure timezone is GMT
+    os.environ['TZ'] = 'GMT'
+    time.tzset()
+
+    # Add statsd service
+    if c.get('sftp', 'log_statsd_host'):
+        try:
+            from swftp.statsd import makeService as makeStatsdService
+            makeStatsdService(
+                c.get('sftp', 'log_statsd_host'),
+                c.getint('sftp', 'log_statsd_port'),
+                sample_rate=c.getfloat('sftp', 'log_statsd_sample_rate'),
+                prefix=c.get('sftp', 'log_statsd_metric_prefix')
+            ).setServiceParent(sftp_service)
+        except ImportError:
+            log.err('Missing Statsd Module. Requires "txstatsd"')
+
     authdb = SwiftBasedAuthDB(auth_url=c.get('sftp', 'auth_url'))
 
     sftpportal = Portal(SwiftSFTPRealm())
@@ -119,8 +142,9 @@ def makeService(options):
     signal.signal(signal.SIGUSR1, print_runtime_info)
     signal.signal(signal.SIGUSR2, print_runtime_info)
 
-    os.environ['TZ'] = 'GMT'
-    time.tzset()
+    internet.TCPServer(
+        c.getint('sftp', 'port'),
+        sshfactory,
+        interface=c.get('sftp', 'host')).setServiceParent(sftp_service)
 
-    return internet.TCPServer(
-        c.getint('sftp', 'port'), sshfactory, interface=c.get('sftp', 'host'))
+    return sftp_service

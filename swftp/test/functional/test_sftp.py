@@ -236,7 +236,7 @@ class DeleteTests(SFTPFuncTest):
     def test_delete_populated_dir_not_existing(self):
         yield self.swift.put_container('sftp_tests')
         yield self.swift.put_object('sftp_tests', 'dir1/obj2')
-        self.assertRaises(IOError, self.sftp.rmdir, 'sftp_tests/dir1')
+        self.sftp.rmdir('sftp_tests/dir1')
 
 
 class ListingTests(SFTPFuncTest):

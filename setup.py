@@ -11,7 +11,7 @@ try:
 except:
     pass
 
-requires = ['twisted >= 12.1', 'pyopenssl', 'pycrypto', 'pyasn1']
+requires = ['twisted >= 12.1', 'pyopenssl', 'pycrypto', 'pyasn1', 'psutil']
 
 if sys.version_info < (2, 7):
     requires.append('ordereddict')
