@@ -14,20 +14,17 @@ def makeService(host='127.0.0.1', port=8125, sample_rate=1.0, prefix=''):
     reporting = ReportingService()
 
     for report in PROCESS_STATS:
-        reporting.schedule(report, sample_rate, metrics.increment)
+        reporting.schedule(report, sample_rate, metrics.gauge)
 
     for report in NET_STATS:
-        reporting.schedule(report, sample_rate, metrics.increment)
+        reporting.schedule(report, sample_rate, metrics.gauge)
 
     for report in COUNTER_STATS:
-        reporting.schedule(report, sample_rate, metrics.increment)
+        reporting.schedule(report, sample_rate, metrics.gauge)
 
     # Attach statsd log observer
-    metric_collector = StatsdMetricCollector()
-    reporting.schedule(
-        metric_collector.report_events, sample_rate, metrics.meter)
-    reporting.schedule(
-        metric_collector.report_stats, sample_rate, metrics.increment)
+    metric_collector = StatsdMetricCollector(metrics)
+    reporting.schedule(metric_collector.report_metrics, sample_rate, None)
     log.addObserver(metric_collector.emit)
 
     protocol = StatsDClientProtocol(client)
@@ -36,7 +33,8 @@ def makeService(host='127.0.0.1', port=8125, sample_rate=1.0, prefix=''):
 
 
 class StatsdMetricCollector(object):
-    def __init__(self):
+    def __init__(self, metric):
+        self.metric = metric
         self.metrics = defaultdict(int)
 
     def emit(self, eventDict):
@@ -46,14 +44,14 @@ class StatsdMetricCollector(object):
     def reset_metrics(self):
         self.metrics = defaultdict(int)
 
-    def report_events(self):
-        result = self.metrics
+    def report_metrics(self):
+        # Report collected metrics
+        results = self.metrics
         self.reset_metrics()
-        return result
+        for name, value in results.items():
+            self.metric.increment(name, value)
 
-    def report_stats(self):
+        # Generate/send Aux stats
         num_clients = len(
             [r for r in reactor.getReaders() if isinstance(r, tcp.Server)])
-        return {
-            'clients': num_clients,
-        }
+        self.metric.gauge('clients', num_clients)
