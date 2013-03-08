@@ -163,42 +163,44 @@ Statsd Support
 Statsd support relies on [txStatsD](https://pypi.python.org/pypi/txStatsD). If the 'log_statsd_host' config value is set, the following paths will be emited into statsd.
 
 ### General
-stats.guages.[prefix].clients
-stats.guages.[prefix].proc.threads
-stats.guages.[prefix].proc.cpu.percent
-stats.guages.[prefix].proc.cpu.system
-stats.guages.[prefix].proc.cpu.user
-stats.guages.[prefix].proc.memory.percent
-stats.guages.[prefix].proc.memory.rss
-stats.guages.[prefix].proc.memory.vsize
-stats.guages.[prefix].proc.net.status.[tcp_state]
 
-stats.[prefix].egress_bytes
-stats.[prefix].ingress_bytes
+* stats.[prefix].egress_bytes
+* stats.[prefix].ingress_bytes
+* stats.guages.[prefix].clients
+* stats.guages.[prefix].proc.threads
+* stats.guages.[prefix].proc.cpu.percent
+* stats.guages.[prefix].proc.cpu.system
+* stats.guages.[prefix].proc.cpu.user
+* stats.guages.[prefix].proc.memory.percent
+* stats.guages.[prefix].proc.memory.rss
+* stats.guages.[prefix].proc.memory.vsize
+* stats.guages.[prefix].proc.net.status.[tcp_state]
 
 ### SFTP-related
-stats.[prefix].command.getAttrs
-stats.[prefix].command.login
-stats.[prefix].command.logout
-stats.[prefix].command.makeDirectory
-stats.[prefix].command.openDirectory
-stats.[prefix].command.openFile
-stats.[prefix].command.removeDirectory
-stats.[prefix].command.removeFile
-stats.[prefix].command.renameFile
+
+* stats.[prefix].command.getAttrs
+* stats.[prefix].command.login
+* stats.[prefix].command.logout
+* stats.[prefix].command.makeDirectory
+* stats.[prefix].command.openDirectory
+* stats.[prefix].command.openFile
+* stats.[prefix].command.removeDirectory
+* stats.[prefix].command.removeFile
+* stats.[prefix].command.renameFile
 
 ### FTP-related
-stats.[prefix].command.access
-stats.[prefix].command.list
-stats.[prefix].command.login
-stats.[prefix].command.logout
-stats.[prefix].command.makeDirectory
-stats.[prefix].command.openForReading
-stats.[prefix].command.openForWriting
-stats.[prefix].command.removeDirectory
-stats.[prefix].command.removeFile
-stats.[prefix].command.rename
-stats.[prefix].command.stat
+
+* stats.[prefix].command.access
+* stats.[prefix].command.list
+* stats.[prefix].command.login
+* stats.[prefix].command.logout
+* stats.[prefix].command.makeDirectory
+* stats.[prefix].command.openForReading
+* stats.[prefix].command.openForWriting
+* stats.[prefix].command.removeDirectory
+* stats.[prefix].command.removeFile
+* stats.[prefix].command.rename
+* stats.[prefix].command.stat
 
 License
 -------
