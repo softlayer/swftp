@@ -39,7 +39,7 @@ def get_config(config_path, overrides):
         'log_statsd_host': '',
         'log_statsd_port': '8125',
         'log_statsd_sample_rate': '10.0',
-        'log_statsd_metric_prefix': '',
+        'log_statsd_metric_prefix': 'swftp.ftp',
     }
     c = ConfigParser.ConfigParser(defaults)
     c.add_section('ftp')

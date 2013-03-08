@@ -9,6 +9,7 @@ Features
 * Support for HTTPS communication to the backend OpenStack Object Storage cluster.
 * Configurable welcome message for the FTP server.
 * Simple Installation (pip install swftp).
+* StatsD Support
 
 Requirements
 ------------
@@ -108,6 +109,10 @@ priv_key = /etc/swftp/id_rsa
 pub_key = /etc/swftp/id_rsa.pub
 num_persistent_connections = 4
 connection_timeout = 240
+log_statsd_host = 
+log_statsd_port = 8125
+log_statsd_sample_rate = 10
+log_statsd_metric_prefix = sftp
 
 [ftp]
 auth_url = http://127.0.0.1:8080/auth/v1.0
@@ -116,6 +121,10 @@ port = 5021
 num_persistent_connections = 4
 connection_timeout = 240
 welcome_message = Welcome to SwFTP - An FTP/SFTP interface for Openstack Swift
+log_statsd_host = 
+log_statsd_port = 8125
+log_statsd_sample_rate = 10
+log_statsd_metric_prefix = ftp
 ```
 
 Caveats
@@ -125,10 +134,8 @@ Caveats
 * No recursive delete. Most clients will explicitly delete each file/directory recursively anyway.
 * Fake-directories and real objects of the same name will simply display the directory. A lot of clients [actually explode](http://gifsoup.com/webroot/animatedgifs2/1095919_o.gif) if a directory listing has duplicates.
 
-
 Organization
 ------------
-
 * etc/: Sample config files
 * swftp/: Core/shared code
   * ftp/: FTP server
@@ -151,10 +158,50 @@ They are all located within the /etc/ directory.
 * Supervisor
     * /etc/supervisor/conf.d/swftp.conf
 
+Statsd Support
+--------------
+Statsd support relies on [txStatsD](https://pypi.python.org/pypi/txStatsD). If the 'log_statsd_host' config value is set, the following paths will be emited into statsd.
+
+### General
+stats.guages.[prefix].clients
+stats.guages.[prefix].proc.threads
+stats.guages.[prefix].proc.cpu.percent
+stats.guages.[prefix].proc.cpu.system
+stats.guages.[prefix].proc.cpu.user
+stats.guages.[prefix].proc.memory.percent
+stats.guages.[prefix].proc.memory.rss
+stats.guages.[prefix].proc.memory.vsize
+stats.guages.[prefix].proc.net.status.[tcp_state]
+
+stats.[prefix].egress_bytes
+stats.[prefix].ingress_bytes
+
+### SFTP-related
+stats.[prefix].command.getAttrs
+stats.[prefix].command.login
+stats.[prefix].command.logout
+stats.[prefix].command.makeDirectory
+stats.[prefix].command.openDirectory
+stats.[prefix].command.openFile
+stats.[prefix].command.removeDirectory
+stats.[prefix].command.removeFile
+stats.[prefix].command.renameFile
+
+### FTP-related
+stats.[prefix].command.access
+stats.[prefix].command.list
+stats.[prefix].command.login
+stats.[prefix].command.logout
+stats.[prefix].command.makeDirectory
+stats.[prefix].command.openForReading
+stats.[prefix].command.openForWriting
+stats.[prefix].command.removeDirectory
+stats.[prefix].command.removeFile
+stats.[prefix].command.rename
+stats.[prefix].command.stat
 
 License
 -------
-
 Copyright (c) 2013 SoftLayer Technologies, Inc.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
