@@ -12,7 +12,7 @@ try:
 except ImportError:
     from ordereddict import OrderedDict  # NOQA
 
-VERSION = '1.0.3'
+VERSION = '1.0.4'
 USER_AGENT = 'SwFTP v%s' % VERSION
 
 DATE_FORMATS = [

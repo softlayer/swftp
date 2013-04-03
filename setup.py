@@ -18,7 +18,7 @@ if sys.version_info < (2, 7):
 
 setup(
     name=name,
-    version='1.0.3',
+    version='1.0.4',
     author='Kevin McDonald',
     author_email='kmcdonald@softlayer.com',
     license='MIT',
