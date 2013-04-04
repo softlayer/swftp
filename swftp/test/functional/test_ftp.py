@@ -273,10 +273,11 @@ class ListingTests(FTPFuncTest):
         yield self.swift.put_object('sftp_tests', 'dir2/obj1')
         yield self.swift.put_object('sftp_tests', 'dir3/obj2')
 
-        listing = self.ftp.nlst('sftp_tests')
-        self.assertIn('dir1', listing)
-        self.assertIn('dir2', listing)
-        self.assertIn('dir3', listing)
+        listing = []
+        self.ftp.dir('sftp_tests', listing.append)
+        self.assertIn('dir1', listing[0])
+        self.assertIn('dir2', listing[1])
+        self.assertIn('dir3', listing[2])
         self.assertEqual(3, len(listing))
 
         listing = self.ftp.nlst('sftp_tests/dir1')
@@ -298,5 +299,6 @@ class ListingTests(FTPFuncTest):
                 'sftp_tests', str(i),
                 headers={'Content-Type': 'application/directory'})
         time.sleep(2)
-        listing = self.ftp.nlst('sftp_tests')
+        listing = []
+        self.ftp.dir('sftp_tests', listing.append)
         self.assertEqual(101, len(listing))

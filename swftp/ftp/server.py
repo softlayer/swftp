@@ -13,7 +13,7 @@ from twisted.internet.protocol import Protocol
 from twisted.python import log
 import stat
 
-from swftp.swiftfilesystem import SwiftFileSystem, swift_stat
+from swftp.swiftfilesystem import SwiftFileSystem, swift_stat, obj_to_path
 from swftp.swift import NotFound, Conflict
 
 
@@ -192,6 +192,11 @@ class SwiftFTPShell:
     def openForWriting(self, path):
         self.log_command('openForWriting', path)
         fullpath = self._fullpath(path)
+        container, obj = obj_to_path(fullpath)
+        if not container or not obj:
+            log.msg('cannot upload to root')
+            raise CmdNotImplementedForArgError(
+                'Cannot upload files to root directory.')
         f = SwiftWriteFile(self.swiftfilesystem, fullpath)
         return defer.succeed(f)
 

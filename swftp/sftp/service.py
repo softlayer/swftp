@@ -3,6 +3,8 @@ This file defines what is required for swftp-sftp to work with twistd.
 
 See COPYING for license information.
 """
+from swftp.utils import VERSION
+
 from twisted.application import internet, service
 from twisted.python import usage, log
 from twisted.internet import reactor
@@ -37,6 +39,7 @@ def get_config(config_path, overrides):
         'pub_key': '/etc/swftp/id_rsa.pub',
         'num_persistent_connections': '4',
         'connection_timeout': '240',
+        'verbose': 'false',
         'log_statsd_host': '',
         'log_statsd_port': '8125',
         'log_statsd_sample_rate': '10.0',
@@ -56,13 +59,15 @@ def get_config(config_path, overrides):
         c.read(config_paths)
     for k, v in overrides.iteritems():
         if v:
-            c.set('sftp', k, v)
+            c.set('sftp', k, str(v))
     return c
 
 
 class Options(usage.Options):
     "Defines Command-line options for the swftp-sftp service"
-    optFlags = []
+    optFlags = [
+        ["verbose", "v", "Make the server more talkative"]
+    ]
     optParameters = [
         ["config_file", "c", None, "Location of the swftp config file."],
         ["auth_url", "a", None,
@@ -108,6 +113,8 @@ def makeService(options):
     os.environ['TZ'] = 'GMT'
     time.tzset()
 
+    log.msg('Starting SwFTP-sftp %s' % VERSION)
+
     # Add statsd service
     if c.get('sftp', 'log_statsd_host'):
         try:
@@ -121,7 +128,8 @@ def makeService(options):
         except ImportError:
             log.err('Missing Statsd Module. Requires "txstatsd"')
 
-    authdb = SwiftBasedAuthDB(auth_url=c.get('sftp', 'auth_url'))
+    authdb = SwiftBasedAuthDB(auth_url=c.get('sftp', 'auth_url'),
+                              verbose=c.getboolean('sftp', 'verbose'))
 
     sftpportal = Portal(SwiftSFTPRealm())
     sftpportal.registerChecker(authdb)

@@ -15,6 +15,7 @@ from twisted.web import error
 from twisted.web.iweb import IBodyProducer
 from twisted.web._newclient import ResponseDone
 from twisted.web.http import PotentialDataLoss
+from twisted.python import log
 
 from zope.interface import implements
 
@@ -40,15 +41,23 @@ class StringProducer(object):
         pass
 
 
-class NotFound(error.Error):
+class RequestError(error.Error):
     pass
 
 
-class UnAuthenticated(error.Error):
+class NotFound(RequestError):
     pass
 
 
-class Conflict(error.Error):
+class UnAuthenticated(RequestError):
+    pass
+
+
+class UnAuthorized(RequestError):
+    pass
+
+
+class Conflict(RequestError):
     pass
 
 
@@ -101,18 +110,19 @@ def cb_recv_resp(response, load_body=False, receiver=None):
 
 
 def cb_process_resp(body, response):
-    # Emulate HTTPClientFactory and raise t.w.e.Error
-    # and PageRedirect if we have errors.
+    # Emulate HTTPClientFactory and raise t.w.e.Error if we have errors.
     if response.code == 404:
         raise NotFound(response.code, body)
     if response.code == 401:
         raise UnAuthenticated(response.code, body)
+    if response.code == 403:
+        raise UnAuthorized(response.code, body)
     if response.code == 409:
         raise Conflict(response.code, body)
     elif response.code > 299 and response.code < 400:
         raise error.PageRedirect(response.code, body)
     elif response.code > 399:
-        raise error.Error(response.code, body)
+        raise RequestError(response.code, body)
     headers = {}
     for k, v in response.headers.getAllRawHeaders():
         headers[k.lower()] = v.pop()
@@ -136,7 +146,7 @@ class SwiftConnection:
     """
     user_agent = 'Twisted Swift'
 
-    def __init__(self, auth_url, username, api_key, pool=None):
+    def __init__(self, auth_url, username, api_key, pool=None, verbose=False):
         self.auth_url = auth_url
         self.username = username
         self.api_key = api_key
@@ -145,6 +155,7 @@ class SwiftConnection:
         self.contextFactory = WebClientContextFactory()
         self.contextFactory.noisy = False
         self.pool = pool
+        self.verbose = verbose
         # self.agent = Agent(reactor, self.contextFactory, pool=pool)
 
     def make_request(self, method, path, params=None, headers=None, body=None,
@@ -168,12 +179,14 @@ class SwiftConnection:
 
         def doRequest(ignored):
             h['X-Auth-Token'] = [self.auth_token]
+            if self.verbose:
+                log.msg('Request: %s %s, headers: %s' % (method, url, h))
             return agent.request(method, url, Headers(h), body)
 
         d = doRequest(None)
 
         def retryAuth(response):
-            if response.code == 401:
+            if response.code in [401, 403]:
                 d_resp_recvd = Deferred()
                 response.deliverBody(ResponseIgnorer(d_resp_recvd))
                 d_resp_recvd.addCallback(self.cb_retry_auth)
