@@ -96,7 +96,7 @@ def makeService(options):
     from swftp.auth import SwiftBasedAuthDB
     from swftp.utils import print_runtime_info
 
-    log.msg('Starting SwFTP-ftp %s' % VERSION)
+    print('Starting SwFTP-ftp %s' % VERSION)
 
     c = get_config(options['config_file'], options)
     ftp_service = service.MultiService()

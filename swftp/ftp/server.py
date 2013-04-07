@@ -130,7 +130,7 @@ class SwiftFTPShell:
         def cb(result):
             if result['content_type'] == 'application/directory':
                 return defer.succeed(lambda: None)
-            return defer.fail(IsNotADirectoryError(path))
+            return defer.fail(IsNotADirectoryError(fullpath))
         d.addCallback(cb)
 
         def err(failure):
@@ -141,7 +141,7 @@ class SwiftFTPShell:
             if len(path) != 1:
                 return defer.succeed(lambda: None)
             else:
-                return defer.fail(IsNotADirectoryError(path))
+                return defer.fail(IsNotADirectoryError(fullpath))
 
         d.addErrback(err)
         return d
@@ -155,7 +155,7 @@ class SwiftFTPShell:
 
         def err(failure):
             failure.trap(NotFound)
-            return defer.fail(FileNotFoundError(path))
+            return defer.fail(FileNotFoundError(fullpath))
 
         d = self.swiftfilesystem.getAttrs(fullpath)
         d.addCallback(cb)
@@ -172,8 +172,13 @@ class SwiftFTPShell:
                 l.append([key, stat_format(keys, value)])
             return l
 
+        def err(failure):
+            failure.trap(NotFound)
+            return defer.fail(FileNotFoundError(fullpath))
+
         d = self.swiftfilesystem.get_full_listing(fullpath)
         d.addCallback(cb)
+        d.addErrback(err)
         return d
 
     def openForReading(self, path):
@@ -187,7 +192,7 @@ class SwiftFTPShell:
             d.addCallback(cb)
             return d
         except NotImplementedError:
-            return defer.fail(IsADirectoryError(path))
+            return defer.fail(IsADirectoryError(fullpath))
 
     def openForWriting(self, path):
         self.log_command('openForWriting', path)
@@ -247,7 +252,7 @@ class SwiftReadFile(Protocol):
             self.finished.callback(None)
         else:
             self.finished.errback(reason)
-        self.consumer.stopProducing()
+        self.consumer.unregisterProducer()
 
     def makeConnection(self, transport):
         pass
