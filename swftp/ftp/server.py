@@ -187,9 +187,15 @@ class SwiftFTPShell:
 
         def cb(results):
             return SwiftReadFile(self.swiftfilesystem, fullpath)
+
+        def err(failure):
+            failure.trap(NotFound)
+            return defer.fail(FileNotFoundError(fullpath))
+
         try:
             d = self.swiftfilesystem.checkFileExistance(fullpath)
             d.addCallback(cb)
+            d.addErrback(err)
             return d
         except NotImplementedError:
             return defer.fail(IsADirectoryError(fullpath))
