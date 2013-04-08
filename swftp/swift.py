@@ -98,7 +98,9 @@ class ResponseIgnorer(Protocol):
 
 def cb_recv_resp(response, load_body=False, receiver=None):
     d_resp_recvd = Deferred()
-    if load_body:
+    if response.code == 204:
+        response.deliverBody(ResponseIgnorer(d_resp_recvd))
+    elif load_body:
         response.deliverBody(ResponseReceiver(d_resp_recvd))
     else:
         if receiver:
