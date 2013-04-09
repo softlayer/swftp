@@ -166,15 +166,15 @@ Statsd support relies on [txStatsD](https://pypi.python.org/pypi/txStatsD). If t
 
 * stats.[prefix].egress_bytes
 * stats.[prefix].ingress_bytes
-* stats.guages.[prefix].clients
-* stats.guages.[prefix].proc.threads
-* stats.guages.[prefix].proc.cpu.percent
-* stats.guages.[prefix].proc.cpu.system
-* stats.guages.[prefix].proc.cpu.user
-* stats.guages.[prefix].proc.memory.percent
-* stats.guages.[prefix].proc.memory.rss
-* stats.guages.[prefix].proc.memory.vsize
-* stats.guages.[prefix].proc.net.status.[tcp_state]
+* stats.gauges.[prefix].clients
+* stats.gauges.[prefix].proc.threads
+* stats.gauges.[prefix].proc.cpu.percent
+* stats.gauges.[prefix].proc.cpu.system
+* stats.gauges.[prefix].proc.cpu.user
+* stats.gauges.[prefix].proc.memory.percent
+* stats.gauges.[prefix].proc.memory.rss
+* stats.gauges.[prefix].proc.memory.vsize
+* stats.gauges.[prefix].proc.net.status.[tcp_state]
 
 ### SFTP-related
 
