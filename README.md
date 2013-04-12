@@ -22,11 +22,15 @@ Getting Started
 ---------------
 ### Installing
 Install via pip:
-
 ```bash
 $ pip install swftp
 ```
 Note: If you don't have pip [here's how to install it](http://www.pip-installer.org/en/latest/installing.html).
+
+Install using git/pip:
+```bash
+$ pip install -U git+git://github.com/softlayer/swftp.git
+```
 
 Install from source:
 ```bash
@@ -107,7 +111,8 @@ host = 0.0.0.0
 port = 5022
 priv_key = /etc/swftp/id_rsa
 pub_key = /etc/swftp/id_rsa.pub
-num_persistent_connections = 4
+num_persistent_connections = 20
+num_connections_per_session = 10
 connection_timeout = 240
 log_statsd_host = 
 log_statsd_port = 8125
@@ -118,7 +123,8 @@ log_statsd_metric_prefix = sftp
 auth_url = http://127.0.0.1:8080/auth/v1.0
 host = 0.0.0.0
 port = 5021
-num_persistent_connections = 4
+num_persistent_connections = 20
+num_connections_per_session = 10
 connection_timeout = 240
 welcome_message = Welcome to SwFTP - An FTP/SFTP interface for Openstack Swift
 log_statsd_host = 

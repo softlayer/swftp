@@ -7,7 +7,7 @@ swift includes a basic swift client for twisted.
 See COPYING for license information.
 """
 from twisted.internet import reactor
-from twisted.internet.defer import Deferred, succeed
+from twisted.internet.defer import Deferred, succeed, DeferredSemaphore
 from twisted.web.client import Agent, WebClientContextFactory
 from twisted.internet.protocol import Protocol
 from twisted.web.http_headers import Headers
@@ -158,7 +158,7 @@ class SwiftConnection:
         self.contextFactory.noisy = False
         self.pool = pool
         self.verbose = verbose
-        # self.agent = Agent(reactor, self.contextFactory, pool=pool)
+        self.agent = Agent(reactor, self.contextFactory, pool=self.pool)
 
     def make_request(self, method, path, params=None, headers=None, body=None,
                      body_reader=None):
@@ -177,13 +177,12 @@ class SwiftConnection:
             for k, v in params.iteritems():
                 param_lst.append("%s=%s" % (k, v))
             url = "%s?%s" % (url, "&".join(param_lst))
-        agent = Agent(reactor, self.contextFactory, pool=self.pool)
 
         def doRequest(ignored):
             h['X-Auth-Token'] = [self.auth_token]
             if self.verbose:
                 log.msg('Request: %s %s, headers: %s' % (method, url, h))
-            return agent.request(method, url, Headers(h), body)
+            return self.agent.request(method, url, Headers(h), body)
 
         d = doRequest(None)
 
@@ -214,8 +213,7 @@ class SwiftConnection:
             'X-Auth-User': [self.username],
             'X-Auth-Key': [self.api_key],
         }
-        agent = Agent(reactor, self.contextFactory, pool=self.pool)
-        d = agent.request('GET', self.auth_url, Headers(headers))
+        d = self.agent.request('GET', self.auth_url, Headers(headers))
         d.addCallback(cb_recv_resp, load_body=True)
         d.addCallback(self.after_authenticate)
         return d
@@ -298,6 +296,22 @@ class SwiftConnection:
         d = self.make_request('DELETE', _path)
         d.addCallback(cb_recv_resp)
         return d
+
+
+class ThrottledSwiftConnection(SwiftConnection):
+    max_concurrency = 10
+
+    def __init__(self, *args, **kwargs):
+        SwiftConnection.__init__(self, *args, **kwargs)
+        self.semaphore = DeferredSemaphore(self.max_concurrency)
+
+    def make_request(self, *args, **kwargs):
+        if self.verbose:
+            log.msg(
+                'Attaining Lock. [%s free/%s total]' %
+                (self.semaphore.tokens, self.semaphore.limit))
+        return self.semaphore.run(
+            SwiftConnection.make_request, self, *args, **kwargs)
 
 
 def quote(value, safe='/'):

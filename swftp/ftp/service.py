@@ -14,6 +14,22 @@ import signal
 import os
 import sys
 
+CONFIG_DEFAULTS = {
+    'auth_url': 'http://127.0.0.1:8080/auth/v1.0',
+    'host': '0.0.0.0',
+    'port': '5021',
+    'num_persistent_connections': '20',
+    'num_connections_per_session': '10',
+    'connection_timeout': '240',
+    'verbose': 'false',
+    'welcome_message': 'Welcome to SwFTP'
+                       ' - an FTP interface for Openstack Swift',
+    'log_statsd_host': '',
+    'log_statsd_port': '8125',
+    'log_statsd_sample_rate': '10.0',
+    'log_statsd_metric_prefix': 'swftp.ftp',
+}
+
 
 def run():
     options = Options()
@@ -30,21 +46,7 @@ def run():
 
 
 def get_config(config_path, overrides):
-    defaults = {
-        'auth_url': 'http://127.0.0.1:8080/auth/v1.0',
-        'host': '0.0.0.0',
-        'port': '5021',
-        'num_persistent_connections': '4',
-        'connection_timeout': '240',
-        'verbose': 'false',
-        'welcome_message': 'Welcome to SwFTP'
-                           ' - an FTP interface for Openstack Swift',
-        'log_statsd_host': '',
-        'log_statsd_port': '8125',
-        'log_statsd_sample_rate': '10.0',
-        'log_statsd_metric_prefix': 'swftp.ftp',
-    }
-    c = ConfigParser.ConfigParser(defaults)
+    c = ConfigParser.ConfigParser(CONFIG_DEFAULTS)
     c.add_section('ftp')
     if config_path:
         log.msg('Reading configuration from path: %s' % config_path)
@@ -80,13 +82,7 @@ class Options(usage.Options):
 def makeService(options):
     """
     Makes a new swftp-ftp service. The only option is the config file
-    location. The config file has the following options:
-     - host
-     - port
-     - auth_url
-     - num_persistent_connections
-     - connection_timeout
-     - welcome_message
+    location. See CONFIG_DEFAULTS for list of configuration options.
     """
     from twisted.protocols.ftp import FTPFactory
     from twisted.web.client import HTTPConnectionPool
@@ -112,14 +108,19 @@ def makeService(options):
                 prefix=c.get('ftp', 'log_statsd_metric_prefix')
             ).setServiceParent(ftp_service)
         except ImportError:
-            log.err('Missing Statsd Module. Requires "txstatsd"')
+            sys.stderr.write('Missing Statsd Module. Requires "txstatsd" \n')
 
     pool = HTTPConnectionPool(reactor, persistent=True)
-    pool.maxPersistentPerHost = c.getint('ftp', 'num_persistent_connections')
+    max_conn_per_host = c.getint('ftp', 'num_persistent_connections')
+    if max_conn_per_host:
+        pool.maxPersistentPerHost = max_conn_per_host
     pool.cachedConnectionTimeout = c.getint('ftp', 'connection_timeout')
 
-    authdb = SwiftBasedAuthDB(auth_url=c.get('ftp', 'auth_url'),
-                              verbose=c.getboolean('ftp', 'verbose'))
+    authdb = SwiftBasedAuthDB(
+        auth_url=c.get('ftp', 'auth_url'),
+        pool=pool,
+        max_concurrency=c.getint('ftp', 'num_connections_per_session'),
+        verbose=c.getboolean('ftp', 'verbose'))
 
     ftpportal = Portal(SwiftFTPRealm())
     ftpportal.registerChecker(authdb)
