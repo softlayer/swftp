@@ -178,6 +178,8 @@ class SwiftFileSystem(object):
             defer.returnValue(None)
         else:
             # If the object doesn't actually exist, ABORT
+            path = path or ''
+            newpath = newpath or ''
             try:
                 yield self.swiftconn.head_object(container, path)
             except NotFound:
