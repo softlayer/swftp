@@ -5,33 +5,40 @@ from zope.interface import implements
 from twisted.internet import defer
 from twisted.cred import checkers, error, credentials
 
-from swftp.swift import (
-    SwiftConnection, ThrottledSwiftConnection, UnAuthenticated, UnAuthorized)
+from swftp.swift import ThrottledSwiftConnection, UnAuthenticated, UnAuthorized
 from swftp.utils import USER_AGENT
 
 
 class SwiftBasedAuthDB:
     """
-        Swift-based authentication.
+        Swift-based authentication
 
         Implements twisted.cred.ICredentialsChecker
+
+        :param auth_url: auth endpoint for swift
+        :param pool: A twisted.web.client.HTTPConnectionPool object
+        :param int max_concurrency: The max concurrency for each
+            ThrottledSwiftConnection object
+        :param bool verbose: verbose setting
     """
     implements(checkers.ICredentialsChecker)
-
-    def __init__(self, auth_url=None, pool=None, max_concurrency=20,
-                 verbose=False):
-        self.auth_url = auth_url
-        self.pool = pool
-        self.verbose = verbose
-        if max_concurrency:
-            self.swift_connection_class = ThrottledSwiftConnection
-            self.swift_connection_class.max_concurrency = max_concurrency
-        else:
-            self.swift_connection_class = SwiftConnection
-
     credentialInterfaces = (
         credentials.IUsernamePassword,
     )
+
+    def __init__(self,
+                 auth_url=None,
+                 pool=None,
+                 max_concurrency=20,
+                 verbose=False):
+        self.auth_url = auth_url
+        self.pool = pool
+        self.global_lock = None
+        if self.pool:
+            self.global_lock = defer.DeferredSemaphore(
+                pool.maxPersistentPerHost)
+        self.verbose = verbose
+        self.max_concurrency = max_concurrency
 
     def _after_auth(self, result, connection):
         return connection
@@ -39,18 +46,27 @@ class SwiftBasedAuthDB:
     def requestAvatarId(self, c):
         creds = credentials.IUsernamePassword(c, None)
         if creds is not None:
-            conn = self.swift_connection_class(
-                self.auth_url, creds.username, creds.password,
-                pool=self.pool,
-                verbose=self.verbose)
+            defer.DeferredSemaphore(self.max_concurrency)
+
+            semaphores = []
+            if self.max_concurrency:
+                semaphores.append(
+                    defer.DeferredSemaphore(self.max_concurrency))
+            if self.global_lock:
+                semaphores.append(self.global_lock)
+
+            conn = ThrottledSwiftConnection(
+                semaphores, self.auth_url, creds.username, creds.password,
+                pool=self.pool, verbose=self.verbose)
             conn.user_agent = USER_AGENT
+
             d = conn.authenticate()
             d.addCallback(self._after_auth, conn)
-            d.addErrback(failed_auth)
+            d.addErrback(eb_failed_auth)
             return d
         return defer.fail(error.UnauthorizedLogin())
 
 
-def failed_auth(failure):
+def eb_failed_auth(failure):
     failure.trap(UnAuthenticated, UnAuthorized)
     return defer.fail(error.UnauthorizedLogin())

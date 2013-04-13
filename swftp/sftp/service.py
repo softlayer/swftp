@@ -22,7 +22,7 @@ CONFIG_DEFAULTS = {
     'port': '5022',
     'priv_key': '/etc/swftp/id_rsa',
     'pub_key': '/etc/swftp/id_rsa.pub',
-    'num_persistent_connections': '20',
+    'num_persistent_connections': '100',
     'num_connections_per_session': '10',
     'connection_timeout': '240',
     'verbose': 'false',
@@ -93,8 +93,8 @@ def makeService(options):
     from twisted.web.client import HTTPConnectionPool
     from twisted.cred.portal import Portal
 
-    from swftp.sftp.server import SwiftSFTPRealm, SwiftSSHServerTransport
-    from swftp.sftp.connection import SwiftConnection
+    from swftp.sftp.server import SwiftSFTPRealm, SwiftSSHServerTransport, \
+        SwiftSSHConnection
     from swftp.auth import SwiftBasedAuthDB
     from swftp.utils import print_runtime_info
 
@@ -139,7 +139,7 @@ def makeService(options):
     sshfactory.protocol = SwiftSSHServerTransport
     sshfactory.noisy = False
     sshfactory.portal = sftpportal
-    sshfactory.services['ssh-connection'] = SwiftConnection
+    sshfactory.services['ssh-connection'] = SwiftSSHConnection
 
     pub_key_string = file(c.get('sftp', 'pub_key')).read()
     priv_key_string = file(c.get('sftp', 'priv_key')).read()

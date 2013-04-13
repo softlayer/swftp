@@ -7,7 +7,7 @@ swift includes a basic swift client for twisted.
 See COPYING for license information.
 """
 from twisted.internet import reactor
-from twisted.internet.defer import Deferred, succeed, DeferredSemaphore
+from twisted.internet.defer import Deferred, succeed
 from twisted.web.client import Agent, WebClientContextFactory
 from twisted.internet.protocol import Protocol
 from twisted.web.http_headers import Headers
@@ -145,6 +145,12 @@ def cb_json_decode(result):
 class SwiftConnection:
     """
         A basic connection class to interface with OpenStack Swift.
+
+        :param auth_url: auth endpoint for swift
+        :param username: username for swift
+        :param api_key: password/api_key for swift
+        :param pool: A twisted.web.client.HTTPConnectionPool object
+        :param bool verbose: verbose setting
     """
     user_agent = 'Twisted Swift'
 
@@ -171,6 +177,7 @@ class SwiftConnection:
                     h[k] = [v]
                 else:
                     h[k] = v
+
         url = "/".join((self.storage_url, path))
         if params:
             param_lst = []
@@ -299,19 +306,49 @@ class SwiftConnection:
 
 
 class ThrottledSwiftConnection(SwiftConnection):
-    max_concurrency = 10
+    """ A SwiftConnection that has a list of locks that it needs to acquire
+        before making requests. Locks can either be a DeferredSemaphore, a
+        DeferredLock, or anything else that implements
+        twisted.internet.defer._ConcurrencyPrimitive. Locks are acquired in the
+        order in the list.
 
-    def __init__(self, *args, **kwargs):
+        :param locks: list of locks that implement
+            twisted.internet.defer._ConcurrencyPrimitive
+        :param \*args: same arguments as `SwiftConnection`
+        :param \*\*args: same keyword arguments as `SwiftConnection`
+    """
+    def __init__(self, locks, *args, **kwargs):
         SwiftConnection.__init__(self, *args, **kwargs)
-        self.semaphore = DeferredSemaphore(self.max_concurrency)
+        self.locks = locks or []
+
+    def _release_all(self, result):
+        for i, lock in enumerate(self.locks):
+            lock.release()
+            if self.verbose:
+                log.msg(
+                    'Released Lock %s. [%s free/%s total]' %
+                    (i, lock.tokens, lock.limit))
+        return result
+
+    def _aquire_all(self):
+        d = succeed(None)
+        for i, lock in enumerate(self.locks):
+            if self.verbose:
+                log.msg(
+                    'Attaining Lock %s. [%s free/%s total]' %
+                    (i, lock.tokens, lock.limit))
+            d.addCallback(lambda r: lock.acquire())
+        return d
 
     def make_request(self, *args, **kwargs):
-        if self.verbose:
-            log.msg(
-                'Attaining Lock. [%s free/%s total]' %
-                (self.semaphore.tokens, self.semaphore.limit))
-        return self.semaphore.run(
-            SwiftConnection.make_request, self, *args, **kwargs)
+        def execute(ignored):
+            d = SwiftConnection.make_request(self, *args, **kwargs)
+            d.addBoth(self._release_all)
+            return d
+
+        d = self._aquire_all()
+        d.addCallback(execute)
+        return d
 
 
 def quote(value, safe='/'):

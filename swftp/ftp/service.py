@@ -18,7 +18,7 @@ CONFIG_DEFAULTS = {
     'auth_url': 'http://127.0.0.1:8080/auth/v1.0',
     'host': '0.0.0.0',
     'port': '5021',
-    'num_persistent_connections': '20',
+    'num_persistent_connections': '100',
     'num_connections_per_session': '10',
     'connection_timeout': '240',
     'verbose': 'false',

@@ -12,7 +12,7 @@ class SwiftDirectory(object):
     def __init__(self, swiftfilesystem, fullpath):
         self.swiftfilesystem = swiftfilesystem
         self.fullpath = fullpath
-        # A lot of files require . and .. to be within the directory listing
+        # A lot of clients require . and .. to be within the directory listing
         self.files = OrderedDict(
             [
                 ('.', {}),

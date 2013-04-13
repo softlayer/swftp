@@ -4,6 +4,7 @@ This file contains the primary server code for the SFTP server.
 See COPYING for license information.
 """
 from zope import interface
+import struct
 
 from twisted.conch.interfaces import ISFTPServer, ISession
 from twisted.cred import portal
@@ -16,6 +17,8 @@ from twisted.conch.ssh.filetransfer import FileTransferServer, SFTPError, \
     FX_FAILURE, FX_NO_SUCH_FILE
 from twisted.conch.ssh.common import getNS
 from twisted.conch.ssh.transport import SSHServerTransport
+from twisted.conch.ssh.connection import SSHConnection, \
+    MSG_CHANNEL_WINDOW_ADJUST
 
 from swftp.swift import NotFound, Conflict
 from swftp.sftp.swiftfile import SwiftFile
@@ -47,6 +50,17 @@ class SwiftSFTPRealm:
     def requestAvatar(self, avatarId, mind, *interfaces):
         avatar = SwiftSFTPAvatar(avatarId)
         return interfaces[0], avatar, avatar.logout
+
+
+class SwiftSSHConnection(SSHConnection):
+    # SSHConnection is overridden to reduce verbosity.
+    def adjustWindow(self, channel, bytesToAdd):
+        if channel.localClosed:
+            return  # we're already closed
+        self.transport.sendPacket(MSG_CHANNEL_WINDOW_ADJUST, struct.pack('>2L',
+                                  self.channelsToRemoteChannel[channel],
+                                  bytesToAdd))
+        channel.localWindowLeft += bytesToAdd
 
 
 class SwiftFileTransferServer(FileTransferServer):
@@ -127,7 +141,14 @@ class SFTPServerForSwiftConchUser:
 
     def removeFile(self, fullpath):
         self.log_command('removeFile', fullpath)
-        return self.swiftfilesystem.removeFile(fullpath)
+
+        def errback(failure):
+            failure.trap(NotFound)
+            if failure.check(NotFound):
+                return
+        d = self.swiftfilesystem.removeFile(fullpath)
+        d.addErrback(errback)
+        return d
 
     def renameFile(self, oldpath, newpath):
         self.log_command('renameFile', oldpath, newpath)
