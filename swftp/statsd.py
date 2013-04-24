@@ -1,11 +1,11 @@
-from collections import defaultdict
-
 from twisted.internet import reactor, tcp
 from twisted.python import log
 from txstatsd.client import TwistedStatsDClient, StatsDClientProtocol  # NOQA
 from txstatsd.metrics.metrics import Metrics
 from txstatsd.process import PROCESS_STATS, NET_STATS, COUNTER_STATS
 from txstatsd.report import ReportingService
+
+from swftp.utils import MetricCollector
 
 
 def makeService(host='127.0.0.1', port=8125, sample_rate=1.0, prefix=''):
@@ -23,31 +23,26 @@ def makeService(host='127.0.0.1', port=8125, sample_rate=1.0, prefix=''):
         reporting.schedule(report, sample_rate, metrics.gauge)
 
     # Attach statsd log observer
-    metric_collector = StatsdMetricCollector(metrics)
-    reporting.schedule(metric_collector.report_metrics, sample_rate, None)
+    metric_collector = MetricCollector()
     log.addObserver(metric_collector.emit)
+
+    metric_reporter = MetricReporter(metrics, metric_collector)
+    reporting.schedule(metric_reporter.report_metrics, sample_rate, None)
 
     protocol = StatsDClientProtocol(client)
     reactor.listenUDP(0, protocol)
     return reporting
 
 
-class StatsdMetricCollector(object):
-    def __init__(self, metric):
+class MetricReporter(object):
+    def __init__(self, metric, collector):
         self.metric = metric
-        self.metrics = defaultdict(int)
-
-    def emit(self, eventDict):
-        if 'metric' in eventDict:
-            self.metrics[eventDict['metric']] += eventDict.get('count', 1)
-
-    def reset_metrics(self):
-        self.metrics = defaultdict(int)
+        self.collector = collector
 
     def report_metrics(self):
         # Report collected metrics
-        results = self.metrics
-        self.reset_metrics()
+        results = self.collector.metric_rates
+        self.collector.sample()
         for name, value in results.items():
             self.metric.increment(name, value)
 

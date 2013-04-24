@@ -26,10 +26,14 @@ CONFIG_DEFAULTS = {
     'num_connections_per_session': '10',
     'connection_timeout': '240',
     'verbose': 'false',
+
     'log_statsd_host': '',
     'log_statsd_port': '8125',
     'log_statsd_sample_rate': '10.0',
     'log_statsd_metric_prefix': 'swftp.sftp',
+
+    'stats_host': '',
+    'stats_port': '38080',
 }
 
 
@@ -90,20 +94,14 @@ def makeService(options):
     """
     from twisted.conch.ssh.factory import SSHFactory
     from twisted.conch.ssh.keys import Key
-    from twisted.web.client import HTTPConnectionPool
     from twisted.cred.portal import Portal
 
     from swftp.sftp.server import SwiftSFTPRealm, SwiftSSHServerTransport, \
         SwiftSSHConnection
     from swftp.auth import SwiftBasedAuthDB
-    from swftp.utils import print_runtime_info
+    from swftp.utils import log_runtime_info, GLOBAL_METRICS
 
     c = get_config(options['config_file'], options)
-    pool = HTTPConnectionPool(reactor, persistent=True)
-    max_conn_per_host = c.getint('sftp', 'num_persistent_connections')
-    if max_conn_per_host:
-        pool.maxPersistentPerHost = max_conn_per_host
-    pool.cachedConnectionTimeout = c.getint('sftp', 'connection_timeout')
 
     sftp_service = service.MultiService()
 
@@ -126,10 +124,30 @@ def makeService(options):
         except ImportError:
             sys.stderr.write('Missing Statsd Module. Requires "txstatsd" \n')
 
+    if c.get('sftp', 'stats_host'):
+        from swftp.report import makeService as makeReportService
+        known_fields = [
+            'command.login',
+            'command.logout',
+            'command.openFile',
+            'command.removeFile',
+            'command.renameFile',
+            'command.makeDirectory',
+            'command.removeDirectory',
+            'command.openDirectory',
+            'command.getAttrs',
+        ] + GLOBAL_METRICS
+        makeReportService(
+            c.get('sftp', 'stats_host'),
+            c.getint('sftp', 'stats_port'),
+            known_fields=known_fields
+        ).setServiceParent(sftp_service)
+
     authdb = SwiftBasedAuthDB(
         auth_url=c.get('sftp', 'auth_url'),
-        pool=pool,
+        global_max_concurrency=c.getint('ftp', 'num_persistent_connections'),
         max_concurrency=c.getint('sftp', 'num_connections_per_session'),
+        timeout=c.getint('sftp', 'connection_timeout'),
         verbose=c.getboolean('sftp', 'verbose'))
 
     sftpportal = Portal(SwiftSFTPRealm())
@@ -148,8 +166,8 @@ def makeService(options):
     sshfactory.privateKeys = {
         'ssh-rsa': Key.fromString(data=priv_key_string)}
 
-    signal.signal(signal.SIGUSR1, print_runtime_info)
-    signal.signal(signal.SIGUSR2, print_runtime_info)
+    signal.signal(signal.SIGUSR1, log_runtime_info)
+    signal.signal(signal.SIGUSR2, log_runtime_info)
 
     internet.TCPServer(
         c.getint('sftp', 'port'),

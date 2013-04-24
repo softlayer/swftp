@@ -2,7 +2,7 @@
 See COPYING for license information.
 """
 import time
-import signal
+from collections import defaultdict
 
 import twisted.internet.tcp
 from twisted.python import log
@@ -25,6 +25,13 @@ DATE_FORMATS = [
     "%Y-%m-%d"
 ]
 
+GLOBAL_METRICS = [
+    'auth.succeed',
+    'auth.fail',
+    'transfer.egress_bytes',
+    'transfer.ingress_bytes',
+]
+
 
 def try_datetime_parse(datetime_str):
     """
@@ -45,34 +52,85 @@ def try_datetime_parse(datetime_str):
     return mtime
 
 
-def print_runtime_info(sig, frame):
-    if sig in [signal.SIGUSR1, signal.SIGUSR2]:
-        delayed = reactor.getDelayedCalls()
-        readers = reactor.getReaders()
-        writers = reactor.getWriters()
-        clients = []
-        http_conn_num = 0
-        for reader in readers:
-            if isinstance(reader, twisted.internet.tcp.Server):
-                clients.append(reader.getPeer())
-            if isinstance(reader, twisted.internet.tcp.Client):
-                http_conn_num += 1
-        log.msg("[Clients: %(client_num)s] [HTTP Conns: %(http_conn_num)s] "
-                "[Readers: %(reader_num)s] [Writers: %(writer_num)s] "
-                "[DelayedCalls: %(delayed_num)s]" % {
-                    "client_num": len(clients),
-                    "http_conn_num": http_conn_num,
-                    "reader_num": len(readers),
-                    "writer_num": len(writers),
-                    "delayed_num": len(delayed),
-                })
-        log.msg("[Connected Clients]: %s" % clients)
-        if sig == signal.SIGUSR2:
-            for d in delayed:
-                log.msg("SIGUSR2[delayed]: %s" % d)
+class MetricCollector(object):
+    def __init__(self, known_fields=None):
+        self.known_fields = known_fields or []
+        self.metrics = defaultdict(long)
+        self.metric_rates = defaultdict(int)
+        self.metric_samples = defaultdict(list)
 
-            for r in readers:
-                log.msg("SIGUSR2[reader]: %s" % r)
+        for field in self.known_fields:
+            self.metrics[field] = 0
 
-            for w in writers:
-                log.msg("SIGUSR2[writer]: %s" % w)
+        for field in self.known_fields:
+            self.metric_rates[field] = 0
+        self.sample_size = 10
+        self.num_clients = 0
+
+    def emit(self, eventDict):
+        if 'metric' in eventDict:
+            self.add_metric(eventDict['metric'], eventDict.get('count', 1))
+        if 'connect' in eventDict:
+            if eventDict['connect']:
+                self.num_clients += 1
+            else:
+                self.num_clients -= 1
+
+    def add_metric(self, metric, count=1):
+        self.metric_rates[metric] += count
+        self.metrics[metric] += count
+
+    def sample(self):
+        keys = list(
+            set(self.metric_samples.keys()) | set(self.metric_rates.keys()))
+
+        for key in keys:
+            self.metric_samples[key].append(self.metric_rates[key])
+            self.metric_samples[key] = \
+                self.metric_samples[key][-self.sample_size - 1:]
+
+        self.metric_rates = defaultdict(int)
+
+
+def runtime_info():
+    delayed = reactor.getDelayedCalls()
+    readers = reactor.getReaders()
+    writers = reactor.getWriters()
+    clients = []
+    http_conn_num = 0
+    for reader in readers:
+        if isinstance(reader, twisted.internet.tcp.Server):
+            clients.append(reader.getPeer())
+        if isinstance(reader, twisted.internet.tcp.Client):
+            http_conn_num += 1
+    info = {
+        'num_clients': len(clients),
+        'num_http_conn': http_conn_num,
+        'num_readers': len(readers),
+        'num_writers': len(writers),
+        'num_delayed': len(delayed),
+        'clients': clients,
+        'readers': readers,
+        'writers': writers,
+        'delayed': delayed,
+    }
+    return info
+
+
+def log_runtime_info(sig, frame):
+    info = runtime_info()
+    log.msg("[Clients: %(num_clients)s] [HTTP Conns: %(num_http_conn)s] "
+            "[Readers: %(num_readers)s] [Writers: %(num_writers)s] "
+            "[DelayedCalls: %(num_delayed)s]" % info)
+
+    for c in info['clients']:
+        log.msg("[client]: %s" % c)
+
+    for d in info['delayed']:
+        log.msg("[delayed]: %s" % d)
+
+    for r in info['readers']:
+        log.msg("[reader]: %s" % r)
+
+    for w in info['writers']:
+        log.msg("[writer]: %s" % w)

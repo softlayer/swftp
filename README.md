@@ -114,10 +114,14 @@ pub_key = /etc/swftp/id_rsa.pub
 num_persistent_connections = 20
 num_connections_per_session = 10
 connection_timeout = 240
+
 log_statsd_host = 
 log_statsd_port = 8125
 log_statsd_sample_rate = 10
 log_statsd_metric_prefix = sftp
+
+stats_host = 
+stats_port = 38080
 
 [ftp]
 auth_url = http://127.0.0.1:8080/auth/v1.0
@@ -127,10 +131,14 @@ num_persistent_connections = 20
 num_connections_per_session = 10
 connection_timeout = 240
 welcome_message = Welcome to SwFTP - An FTP/SFTP interface for Openstack Swift
+
 log_statsd_host = 
 log_statsd_port = 8125
 log_statsd_sample_rate = 10
 log_statsd_metric_prefix = ftp
+
+stats_host = 
+stats_port = 38080
 ```
 
 Caveats
@@ -138,10 +146,10 @@ Caveats
 * You cannot create top-level files, just directories (because the top level are containers).
 * You cannot rename any non-empty directory.
 * No recursive delete. Most clients will explicitly delete each file/directory recursively anyway.
-* Fake-directories and real objects of the same name will simply display the directory. A lot of clients [actually explode](http://gifsoup.com/webroot/animatedgifs2/1095919_o.gif) if a directory listing has duplicates.
+* Fake-directories and real objects of the same name will simply display the directory. A lot of FTP/SFTP clients [actually explode](http://gifsoup.com/webroot/animatedgifs2/1095919_o.gif) if a directory listing has duplicates.
 
-Organization
-------------
+Project Organization
+--------------------
 * etc/: Sample config files
 * swftp/: Core/shared code
   * ftp/: FTP server
@@ -151,9 +159,7 @@ Organization
 
 Packaging/Creating Init Scripts
 -------------------------------
-Packaged with SwFTP are a set of example init scripts, upstart scripts.
-
-They are all located within the /etc/ directory.
+Packaged with SwFTP are a set of example init scripts, upstart scripts. They are all located within the /etc/ directory in the source.
 
 * Upstart
     * /etc/init/swftp-ftp.conf
@@ -163,6 +169,19 @@ They are all located within the /etc/ directory.
     * /etc/init/swftp-sftp
 * Supervisor
     * /etc/supervisor/conf.d/swftp.conf
+* Example swftp.conf file.
+    * /etc/swftp/swftp.conf.sample
+
+Stats Web Interface
+-------------------
+The web interface is an HTTP interface that provides a way to get more app-specific metrics. The only format supported currently is JSON. If the 'stats_host' config value is set, the server will listen to that interface.
+
+**http://{stats_host}:{stats_port}/stats.json**
+
+```bash
+$ curl http://127.0.0.1:38080/stats.json
+{"rates": {"command.logout": 0, "transfer.egress_bytes": 0, "command.login": 0, "auth.fail": 0, "command.removeDirectory": 0, "auth.succeed": 0, "command.removeFile": 0, "command.renameFile": 0, "transfer.ingress_bytes": 512372, "command.getAttrs": 0, "command.openFile": 0, "command.makeDirectory": 0, "command.openDirectory": 0}, "num_clients": 88, "totals": {"command.logout": 0, "transfer.egress_bytes": 11567105, "command.login": 88, "auth.fail": 0, "command.removeDirectory": 3, "auth.succeed": 88, "command.removeFile": 0, "command.renameFile": 7, "transfer.ingress_bytes": 7208960, "command.getAttrs": 15, "command.openFile": 5, "command.makeDirectory": 0, "command.openDirectory": 7}}
+```
 
 Statsd Support
 --------------

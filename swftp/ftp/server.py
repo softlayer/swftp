@@ -248,7 +248,7 @@ class SwiftReadFile(Protocol):
 
     def dataReceived(self, data):
         self.consumer.write(data)
-        log.msg(metric='egress_bytes', count=len(data))
+        log.msg(metric='transfer.egress_bytes', count=len(data))
 
     def connectionLost(self, reason):
         from twisted.web._newclient import ResponseDone

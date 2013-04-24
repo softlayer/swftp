@@ -2,7 +2,9 @@
 See COPYING for license information.
 """
 from zope.interface import implements
-from twisted.internet import defer
+from twisted.internet import defer, reactor
+from twisted.web.client import HTTPConnectionPool
+from twisted.python import log
 from twisted.cred import checkers, error, credentials
 
 from swftp.swift import ThrottledSwiftConnection, UnAuthenticated, UnAuthorized
@@ -29,18 +31,19 @@ class SwiftBasedAuthDB:
     def __init__(self,
                  auth_url=None,
                  pool=None,
-                 max_concurrency=20,
+                 global_max_concurrency=100,
+                 max_concurrency=10,
+                 timeout=260,
                  verbose=False):
         self.auth_url = auth_url
         self.pool = pool
-        self.global_lock = None
-        if self.pool:
-            self.global_lock = defer.DeferredSemaphore(
-                pool.maxPersistentPerHost)
+        self.timeout = timeout
         self.verbose = verbose
+        self.global_max_concurrency = global_max_concurrency
         self.max_concurrency = max_concurrency
 
     def _after_auth(self, result, connection):
+        log.msg(metric='auth.succeed')
         return connection
 
     def requestAvatarId(self, c):
@@ -48,16 +51,22 @@ class SwiftBasedAuthDB:
         if creds is not None:
             defer.DeferredSemaphore(self.max_concurrency)
 
-            semaphores = []
+            locks = []
+            pool = HTTPConnectionPool(reactor, persistent=False)
+            pool.cachedConnectionTimeout = self.timeout
             if self.max_concurrency:
-                semaphores.append(
+                pool.persistent = True
+                pool.maxPersistentPerHost = self.max_concurrency
+                locks.append(
                     defer.DeferredSemaphore(self.max_concurrency))
-            if self.global_lock:
-                semaphores.append(self.global_lock)
+
+            if self.global_max_concurrency:
+                locks.append(
+                    defer.DeferredSemaphore(self.global_max_concurrency))
 
             conn = ThrottledSwiftConnection(
-                semaphores, self.auth_url, creds.username, creds.password,
-                pool=self.pool, verbose=self.verbose)
+                locks, self.auth_url, creds.username, creds.password,
+                pool=pool, verbose=self.verbose)
             conn.user_agent = USER_AGENT
 
             d = conn.authenticate()
@@ -69,4 +78,5 @@ class SwiftBasedAuthDB:
 
 def eb_failed_auth(failure):
     failure.trap(UnAuthenticated, UnAuthorized)
+    log.msg(metric='auth.fail')
     return defer.fail(error.UnauthorizedLogin())

@@ -9,7 +9,7 @@ from zope import interface
 from twisted.internet import defer, task, reactor
 from twisted.conch.ssh.filetransfer import (
     FXF_CREAT, FXF_TRUNC, SFTPError, FX_NO_SUCH_FILE, FX_FAILURE,
-    FX_CONNECTION_LOST, FXF_WRITE)
+    FX_CONNECTION_LOST)
 from twisted.conch.interfaces import ISFTPFile
 from twisted.internet.protocol import Protocol
 from twisted.internet.interfaces import IPushProducer
@@ -21,7 +21,7 @@ from swftp.swift import NotFound
 
 def cb_log_egress_bytes(result):
     if result:
-        log.msg(metric='egress_bytes', count=len(result))
+        log.msg(metric='transfer.egress_bytes', count=len(result))
     return result
 
 
@@ -151,16 +151,20 @@ class SwiftFileReceiver(Protocol):
 class SwiftFileSender(object):
     "Streams data from SFTP user to Swift"
     interface.implements(IPushProducer)
+    max_buffer_writes = 20
+    buffer_writes_resume = 5
 
-    def __init__(self, swiftfilesystem, fullpath):
+    def __init__(self, swiftfilesystem, fullpath, session):
         self.swiftfilesystem = swiftfilesystem
         self.fullpath = fullpath
+        self.session = session
 
         self.write_finished = None  # Deferred that fires when finished writing
         self._task = None           # Task loop
         self._done_sending = False  # Set to True when the user closes the file
         self._writeBuffer = []
 
+        self.paused = False
         self.started = False
 
     def pauseProducing(self):
@@ -180,6 +184,7 @@ class SwiftFileSender(object):
             d, data = buf
             d.errback(SFTPError(FX_CONNECTION_LOST, 'Connection Lost'))
             self._writeBuffer.remove(buf)
+        self._writeBuffer = []
 
     def _writeFlusher(self, writer):
         while True:
@@ -195,11 +200,21 @@ class SwiftFileSender(object):
                 d, data = self._writeBuffer.pop(0)
                 writer.write(data)
                 d.callback(len(data))
+                self._checkBuffer()
                 yield
             except IndexError:
                 pass
             finally:
                 yield
+
+    def _checkBuffer(self):
+        if self.paused and len(self._writeBuffer) < self.buffer_writes_resume:
+            self.session.conn.transport.transport.resumeProducing()
+            self.paused = False
+        elif not self.paused \
+                and len(self._writeBuffer) > self.max_buffer_writes:
+            self.session.conn.transport.transport.pauseProducing()
+            self.paused = True
 
     def cb_start_task(self, writer):
         self._task = task.cooperate(self._writeFlusher(writer))
@@ -218,6 +233,7 @@ class SwiftFileSender(object):
             self.started = True
         d = defer.Deferred()
         self._writeBuffer.append((d, data))
+        self._checkBuffer()
         return d
 
 
@@ -234,6 +250,7 @@ class SwiftFile(object):
         self.r = None
         self.w = None
         self.props = None
+        self.session = None  # Set later
 
     def checkExistance(self):
         """
@@ -255,8 +272,6 @@ class SwiftFile(object):
             else:
                 raise SFTPError(FX_NO_SUCH_FILE, 'File Not Found')
 
-        if self.flags & FXF_WRITE == FXF_WRITE:
-            self.w = SwiftFileSender(self.swiftfilesystem, self.fullpath)
         d.addCallback(cb)
         d.addErrback(errback)
         return d
@@ -268,6 +283,7 @@ class SwiftFile(object):
             d = defer.maybeDeferred(self.w.close)
             d.addErrback(self._errClose)
             return d
+        del self.session
 
     def _errClose(self, failure):
         failure.trap(ConnectionLost, NotFound)
@@ -277,18 +293,25 @@ class SwiftFile(object):
             raise SFTPError(FX_FAILURE, "Container Doesn't Exist")
 
     def writeChunk(self, offset, data):
+        if not self.w:
+            self.w = SwiftFileSender(
+                self.swiftfilesystem, self.fullpath, self.session)
+
         d = self.w.write(data)
 
         def errback(failure):
             raise SFTPError(FX_FAILURE, 'Upload Failure')
         d.addErrback(errback)
+
+        def cb(result):
+            return result
+        d.addCallback(cb)
         return d
 
     # Reading Methods
     def readChunk(self, offset, length):
         if not self.r:
-            self.r = SwiftFileReceiver(
-                int(self.props['size']), session=self.session)
+            self.r = SwiftFileReceiver(int(self.props['size']), self.session)
             self.swiftfilesystem.startFileDownload(
                 self.fullpath, self.r, offset=offset)
         d = self.r.read(offset, length)

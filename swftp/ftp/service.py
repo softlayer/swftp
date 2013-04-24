@@ -28,6 +28,9 @@ CONFIG_DEFAULTS = {
     'log_statsd_port': '8125',
     'log_statsd_sample_rate': '10.0',
     'log_statsd_metric_prefix': 'swftp.ftp',
+
+    'stats_host': '',
+    'stats_port': '38081',
 }
 
 
@@ -85,12 +88,11 @@ def makeService(options):
     location. See CONFIG_DEFAULTS for list of configuration options.
     """
     from twisted.protocols.ftp import FTPFactory
-    from twisted.web.client import HTTPConnectionPool
     from twisted.cred.portal import Portal
 
     from swftp.ftp.server import SwiftFTPRealm
     from swftp.auth import SwiftBasedAuthDB
-    from swftp.utils import print_runtime_info
+    from swftp.utils import log_runtime_info, GLOBAL_METRICS
 
     print('Starting SwFTP-ftp %s' % VERSION)
 
@@ -110,16 +112,33 @@ def makeService(options):
         except ImportError:
             sys.stderr.write('Missing Statsd Module. Requires "txstatsd" \n')
 
-    pool = HTTPConnectionPool(reactor, persistent=True)
-    max_conn_per_host = c.getint('ftp', 'num_persistent_connections')
-    if max_conn_per_host:
-        pool.maxPersistentPerHost = max_conn_per_host
-    pool.cachedConnectionTimeout = c.getint('ftp', 'connection_timeout')
+    if c.get('ftp', 'stats_host'):
+        from swftp.report import makeService as makeReportService
+        known_fields = [
+            'command.login',
+            'command.logout',
+            'command.makeDirectory',
+            'command.removeDirectory',
+            'command.openFile',
+            'command.removeFile',
+            'command.rename',
+            'command.access',
+            'command.stat',
+            'command.list',
+            'command.openForReading',
+            'command.openForWriting',
+        ] + GLOBAL_METRICS
+        makeReportService(
+            c.get('sftp', 'stats_host'),
+            c.getint('sftp', 'stats_port'),
+            known_fields=known_fields
+        ).setServiceParent(ftp_service)
 
     authdb = SwiftBasedAuthDB(
         auth_url=c.get('ftp', 'auth_url'),
-        pool=pool,
+        global_max_concurrency=c.getint('ftp', 'num_persistent_connections'),
         max_concurrency=c.getint('ftp', 'num_connections_per_session'),
+        timeout=c.getint('ftp', 'connection_timeout'),
         verbose=c.getboolean('ftp', 'verbose'))
 
     ftpportal = Portal(SwiftFTPRealm())
@@ -128,8 +147,8 @@ def makeService(options):
     ftpfactory.welcomeMessage = c.get('ftp', 'welcome_message')
     ftpfactory.allowAnonymous = False
 
-    signal.signal(signal.SIGUSR1, print_runtime_info)
-    signal.signal(signal.SIGUSR2, print_runtime_info)
+    signal.signal(signal.SIGUSR1, log_runtime_info)
+    signal.signal(signal.SIGUSR2, log_runtime_info)
 
     internet.TCPServer(
         c.getint('ftp', 'port'),

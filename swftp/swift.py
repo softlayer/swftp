@@ -12,33 +12,12 @@ from twisted.web.client import Agent, WebClientContextFactory
 from twisted.internet.protocol import Protocol
 from twisted.web.http_headers import Headers
 from twisted.web import error
-from twisted.web.iweb import IBodyProducer
 from twisted.web._newclient import ResponseDone
 from twisted.web.http import PotentialDataLoss
 from twisted.python import log
 
-from zope.interface import implements
-
 import json
 from urllib import quote as _quote
-
-
-class StringProducer(object):
-    implements(IBodyProducer)
-
-    def __init__(self, body):
-        self.body = body
-        self.length = len(body)
-
-    def startProducing(self, consumer):
-        consumer.write(self.body)
-        return succeed(None)
-
-    def pauseProducing(self):
-        pass
-
-    def stopProducing(self):
-        pass
 
 
 class RequestError(error.Error):

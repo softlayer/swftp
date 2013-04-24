@@ -86,6 +86,14 @@ class SwiftSSHServerTransport(SSHServerTransport):
     version = 'SwFTP'
     ourVersionString = 'SSH-2.0-SwFTP'
 
+    def connectionMade(self):
+        log.msg(connect=True)
+        return SSHServerTransport.connectionMade(self)
+
+    def connectionLost(self, reason):
+        log.msg(connect=False)
+        return SSHServerTransport.connectionLost(self, reason)
+
 
 class SwiftSFTPAvatar(avatar.ConchUser):
     "Swift SFTP Avatar"
@@ -100,7 +108,9 @@ class SwiftSFTPAvatar(avatar.ConchUser):
 
     def logout(self):
         self.log_command('logout')
-        self.swiftconn = None
+        if self.swiftconn.pool:
+            self.swiftconn.pool.closeCachedConnections()
+        del self.swiftconn
 
     def log_command(self, command, *args):
         arg_list = ', '.join(str(arg) for arg in args)
