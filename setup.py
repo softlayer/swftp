@@ -36,7 +36,7 @@ setup(
                             'twisted/plugins/swftp_sftp.py']},
     data_files=[
         ('', ['README.md']),
-        ('/etc/swftp', ['etc/swftp/swftp.conf.sample']),
+        ('', ['etc/swftp/swftp.conf.sample']),
     ],
     zip_safe=False,
     classifiers=[
