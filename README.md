@@ -121,7 +121,7 @@ log_statsd_sample_rate = 10
 log_statsd_metric_prefix = sftp
 
 stats_host = 
-stats_port = 38080
+stats_port = 38022
 
 [ftp]
 auth_url = http://127.0.0.1:8080/auth/v1.0
@@ -138,7 +138,7 @@ log_statsd_sample_rate = 10
 log_statsd_metric_prefix = ftp
 
 stats_host = 
-stats_port = 38080
+stats_port = 38021
 ```
 
 Caveats
@@ -179,8 +179,41 @@ The web interface is an HTTP interface that provides a way to get more app-speci
 **http://{stats_host}:{stats_port}/stats.json**
 
 ```bash
-$ curl http://127.0.0.1:38080/stats.json
-{"rates": {"command.logout": 0, "transfer.egress_bytes": 0, "command.login": 0, "auth.fail": 0, "command.removeDirectory": 0, "auth.succeed": 0, "command.removeFile": 0, "command.renameFile": 0, "transfer.ingress_bytes": 512372, "command.getAttrs": 0, "command.openFile": 0, "command.makeDirectory": 0, "command.openDirectory": 0}, "num_clients": 88, "totals": {"command.logout": 0, "transfer.egress_bytes": 11567105, "command.login": 88, "auth.fail": 0, "command.removeDirectory": 3, "auth.succeed": 88, "command.removeFile": 0, "command.renameFile": 7, "transfer.ingress_bytes": 7208960, "command.getAttrs": 15, "command.openFile": 5, "command.makeDirectory": 0, "command.openDirectory": 7}}
+$ curl http://127.0.0.1:38022/stats.json | python -mjson.tool
+{
+    "rates": {
+        "auth.fail": 0,
+        "auth.succeed": 0,
+        "command.getAttrs": 0,
+        "command.login": 0,
+        "command.logout": 9,
+        "command.makeDirectory": 0,
+        "command.openDirectory": 0,
+        "command.openFile": 0,
+        "command.removeDirectory": 0,
+        "command.removeFile": 0,
+        "command.renameFile": 0,
+        "num_clients": -9,
+        "transfer.egress_bytes": 0,
+        "transfer.ingress_bytes": 47662
+    },
+    "totals": {
+        "auth.fail": 0,
+        "auth.succeed": 91,
+        "command.getAttrs": 15,
+        "command.login": 91,
+        "command.logout": 91,
+        "command.makeDirectory": 0,
+        "command.openDirectory": 7,
+        "command.openFile": 8,
+        "command.removeDirectory": 3,
+        "command.removeFile": 0,
+        "command.renameFile": 7,
+        "num_clients": 0,
+        "transfer.egress_bytes": 11567105,
+        "transfer.ingress_bytes": 11567105
+    }
+}
 ```
 
 Statsd Support

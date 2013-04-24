@@ -1,6 +1,5 @@
-from twisted.internet import reactor, tcp
-from twisted.python import log
-from txstatsd.client import TwistedStatsDClient, StatsDClientProtocol  # NOQA
+from twisted.internet import reactor
+from txstatsd.client import TwistedStatsDClient, StatsDClientProtocol
 from txstatsd.metrics.metrics import Metrics
 from txstatsd.process import PROCESS_STATS, NET_STATS, COUNTER_STATS
 from txstatsd.report import ReportingService
@@ -22,9 +21,9 @@ def makeService(host='127.0.0.1', port=8125, sample_rate=1.0, prefix=''):
     for report in COUNTER_STATS:
         reporting.schedule(report, sample_rate, metrics.gauge)
 
-    # Attach statsd log observer
+    # Attach log observer to collect metrics for us
     metric_collector = MetricCollector()
-    log.addObserver(metric_collector.emit)
+    metric_collector.start()
 
     metric_reporter = MetricReporter(metrics, metric_collector)
     reporting.schedule(metric_reporter.report_metrics, sample_rate, None)
@@ -41,12 +40,7 @@ class MetricReporter(object):
 
     def report_metrics(self):
         # Report collected metrics
-        results = self.collector.metric_rates
-        self.collector.sample()
+        results = self.collector.current
         for name, value in results.items():
             self.metric.increment(name, value)
-
-        # Generate/send Aux stats
-        num_clients = len(
-            [r for r in reactor.getReaders() if isinstance(r, tcp.Server)])
-        self.metric.gauge('clients', num_clients)
+        self.collector.sample()

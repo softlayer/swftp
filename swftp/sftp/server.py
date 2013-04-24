@@ -87,11 +87,11 @@ class SwiftSSHServerTransport(SSHServerTransport):
     ourVersionString = 'SSH-2.0-SwFTP'
 
     def connectionMade(self):
-        log.msg(connect=True)
+        log.msg(metric='num_clients')
         return SSHServerTransport.connectionMade(self)
 
     def connectionLost(self, reason):
-        log.msg(connect=False)
+        log.msg(metric='num_clients', count=-1)
         return SSHServerTransport.connectionLost(self, reason)
 
 

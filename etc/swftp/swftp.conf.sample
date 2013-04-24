@@ -14,7 +14,7 @@
 #log_statsd_metric_prefix = sftp
 
 #stats_host = 
-#stats_port = 38080
+#stats_port = 38022
 
 [ftp]
 #auth_url = http://127.0.0.1:8080/auth/v1.0
@@ -31,4 +31,4 @@
 #log_statsd_metric_prefix = ftp
 
 #stats_host = 
-#stats_port = 38080
+#stats_port = 38021

@@ -30,7 +30,7 @@ CONFIG_DEFAULTS = {
     'log_statsd_metric_prefix': 'swftp.ftp',
 
     'stats_host': '',
-    'stats_port': '38081',
+    'stats_port': '38021',
 }
 
 

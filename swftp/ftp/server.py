@@ -60,6 +60,7 @@ class SwiftFTPShell:
         self.swiftconn = swiftconn
         self.swiftfilesystem = SwiftFileSystem(self.swiftconn)
         self.log_command('login')
+        log.msg(metric='num_clients')
 
     def log_command(self, command, *args):
         arg_list = ', '.join(str(arg) for arg in args)
@@ -69,6 +70,7 @@ class SwiftFTPShell:
 
     def logout(self):
         self.log_command('logout')
+        log.msg(metric='num_clients', count=-1)
 
     def _fullpath(self, path_parts):
         return '/'.join(path_parts)

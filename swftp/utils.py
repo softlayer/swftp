@@ -26,6 +26,7 @@ DATE_FORMATS = [
 ]
 
 GLOBAL_METRICS = [
+    'num_clients',
     'auth.succeed',
     'auth.fail',
     'transfer.egress_bytes',
@@ -53,43 +54,62 @@ def try_datetime_parse(datetime_str):
 
 
 class MetricCollector(object):
-    def __init__(self, known_fields=None):
-        self.known_fields = known_fields or []
-        self.metrics = defaultdict(long)
-        self.metric_rates = defaultdict(int)
-        self.metric_samples = defaultdict(list)
+    """ Collects metrics using Twisted Logging
 
-        for field in self.known_fields:
-            self.metrics[field] = 0
+    :param int sample_size: how many samples to save. This is useful for
+                            rolling aggregates.
 
-        for field in self.known_fields:
-            self.metric_rates[field] = 0
-        self.sample_size = 10
-        self.num_clients = 0
+    Example:
+        >>> h = MetricCollector()
+        >>> twisted.python.log.addObserver(h.emit)
+        >>> h.totals
+        {}
+        >>> log.msg(metric='my_metric')
+        >>> h.totals
+        {'my_metric1': 1}
+        >>> h.samples
+        >>> h.sample()
+        {'my_metric1': [1]}
+        >>> h.sample()
+        >>> h.samples
+        {'my_metric1': [1, 0]}
+
+    """
+    def __init__(self, sample_size=10):
+        self.sample_size = sample_size
+        self.current = defaultdict(int)
+        self.totals = defaultdict(long)
+        self.samples = defaultdict(list)
 
     def emit(self, eventDict):
+        " If there is a metric in the eventDict, collect that metric "
         if 'metric' in eventDict:
             self.add_metric(eventDict['metric'], eventDict.get('count', 1))
-        if 'connect' in eventDict:
-            if eventDict['connect']:
-                self.num_clients += 1
-            else:
-                self.num_clients -= 1
 
     def add_metric(self, metric, count=1):
-        self.metric_rates[metric] += count
-        self.metrics[metric] += count
+        " Adds a metric with the given count to the totals/current "
+        self.current[metric] += count
+        self.totals[metric] += count
 
     def sample(self):
+        " Create a sample of the current metrics "
         keys = list(
-            set(self.metric_samples.keys()) | set(self.metric_rates.keys()))
+            set(self.samples.keys()) | set(self.current.keys()))
 
         for key in keys:
-            self.metric_samples[key].append(self.metric_rates[key])
-            self.metric_samples[key] = \
-                self.metric_samples[key][-self.sample_size - 1:]
+            self.samples[key].append(self.current[key])
+            self.samples[key] = \
+                self.samples[key][-self.sample_size - 1:]
 
-        self.metric_rates = defaultdict(int)
+        self.current = defaultdict(int)
+
+    def start(self):
+        " Start observing log events "
+        log.addObserver(self.emit)
+
+    def stop(self):
+        " Stop observing log events "
+        log.removeObserver(self.emit)
 
 
 def runtime_info():

@@ -1,7 +1,7 @@
 import json
+from copy import copy
 
 from twisted.internet import task
-from twisted.python import log
 from twisted.web.server import Site
 from twisted.web.resource import Resource
 from twisted.web.http_headers import Headers
@@ -11,19 +11,32 @@ from swftp.utils import MetricCollector
 
 
 class Stats(Resource):
+    """ Stats resource
+
+    Routes:
+        GET /stats.json
+
+    """
     isLeaf = True
 
-    def __init__(self, metric_collector):
-        self.current_rates = metric_collector.metrics
+    def __init__(self, metric_collector, known_fields=None):
         self.metric_collector = metric_collector
+        self.known_fields = known_fields or []
+
+    def _populate_known_fields(self, d, default=0):
+        for field in self.known_fields:
+            d[field] = d.get(field, default)
 
     def get_stats(self):
+        totals = copy(self.metric_collector.totals)
+        samples = copy(self.metric_collector.samples)
+        self._populate_known_fields(totals, 0)
+        self._populate_known_fields(samples, [0])
         return {
-            'totals': self.metric_collector.metrics,
+            'totals': totals,
             'rates': dict(
                 (key, sum(value) / len(value)) for (key, value) in
-                self.metric_collector.metric_samples.items()),
-            'num_clients': self.metric_collector.num_clients,
+                samples.items()),
         }
 
     def render_GET(self, request):
@@ -37,17 +50,16 @@ class Stats(Resource):
 
 
 def makeService(host='127.0.0.1', port=8125, known_fields=None):
-    # Attach our report log observer
-    metric_collector = MetricCollector(known_fields=known_fields)
-    log.addObserver(metric_collector.emit)
+    metric_collector = MetricCollector()
+    metric_collector.start()
 
-    root = Stats(metric_collector)
+    root = Stats(metric_collector, known_fields=known_fields)
     site = Site(root)
 
-    def reset_metrics():
+    def sample_metrics():
         metric_collector.sample()
 
-    loop = task.LoopingCall(reset_metrics)
+    loop = task.LoopingCall(sample_metrics)
     loop.start(1)
 
     service = internet.TCPServer(

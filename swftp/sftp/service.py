@@ -33,7 +33,7 @@ CONFIG_DEFAULTS = {
     'log_statsd_metric_prefix': 'swftp.sftp',
 
     'stats_host': '',
-    'stats_port': '38080',
+    'stats_port': '38022',
 }
 
 
