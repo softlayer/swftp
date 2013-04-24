@@ -109,7 +109,7 @@ def makeService(options):
     os.environ['TZ'] = 'GMT'
     time.tzset()
 
-    print('Starting SwFTP-ftp %s' % VERSION)
+    print('Starting SwFTP-sftp %s' % VERSION)
 
     # Add statsd service
     if c.get('sftp', 'log_statsd_host'):
