@@ -2,6 +2,8 @@
 from setuptools import setup
 import sys
 
+from swftp import VERSION
+
 short_description = 'SwFTP is an FTP and SFTP interface for Openstack Swift'
 long_description = short_description
 try:
@@ -13,8 +15,6 @@ requires = ['twisted >= 12.1', 'pyopenssl', 'pycrypto', 'pyasn1', 'psutil']
 
 if sys.version_info < (2, 7):
     requires.append('ordereddict')
-
-from swftp import VERSION
 
 setup(
     name='swftp',
