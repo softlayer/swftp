@@ -3,7 +3,7 @@ This file defines what is required for swftp-ftp to work with twistd.
 
 See COPYING for license information.
 """
-from swftp.utils import VERSION
+from swftp import VERSION
 
 from twisted.application import internet, service
 from twisted.python import usage, log

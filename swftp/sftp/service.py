@@ -3,7 +3,7 @@ This file defines what is required for swftp-sftp to work with twistd.
 
 See COPYING for license information.
 """
-from swftp.utils import VERSION
+from swftp import VERSION
 
 from twisted.application import internet, service
 from twisted.python import usage, log
@@ -109,7 +109,7 @@ def makeService(options):
     os.environ['TZ'] = 'GMT'
     time.tzset()
 
-    log.msg('Starting SwFTP-sftp %s' % VERSION)
+    print('Starting SwFTP-ftp %s' % VERSION)
 
     # Add statsd service
     if c.get('sftp', 'log_statsd_host'):

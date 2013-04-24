@@ -1,3 +1,6 @@
+"""
+See COPYING for license information.
+"""
 import json
 from copy import copy
 

@@ -3,7 +3,9 @@ SwFTP is an FTP and SFTP interface for Openstack Swift
 
 See COPYING for license information.
 """
-from swftp.utils import VERSION
+VERSION = '1.0.6-DEV'
+USER_AGENT = 'SwFTP v%s' % VERSION
+
 __title__ = 'swftp'
 __version__ = VERSION
 __author__ = 'SoftLayer Technologies, Inc.'

@@ -1,3 +1,6 @@
+"""
+See COPYING for license information.
+"""
 from twisted.internet import reactor
 from txstatsd.client import TwistedStatsDClient, StatsDClientProtocol
 from txstatsd.metrics.metrics import Metrics

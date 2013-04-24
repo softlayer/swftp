@@ -8,7 +8,7 @@ from twisted.python import log
 from twisted.cred import checkers, error, credentials
 
 from swftp.swift import ThrottledSwiftConnection, UnAuthenticated, UnAuthorized
-from swftp.utils import USER_AGENT
+from swftp import USER_AGENT
 
 
 class SwiftBasedAuthDB:
