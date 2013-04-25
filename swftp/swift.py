@@ -53,7 +53,6 @@ class ResponseReceiver(Protocol):
         self.recv_chunks.append(bytes)
 
     def connectionLost(self, reason):
-
         if reason.check(ResponseDone) or reason.check(PotentialDataLoss):
             self.finished.callback(''.join(self.recv_chunks))
         else:
@@ -84,7 +83,7 @@ def cb_recv_resp(response, load_body=False, receiver=None):
     else:
         if receiver:
             response.deliverBody(receiver)
-            return
+            return response
         else:
             response.deliverBody(ResponseIgnorer(d_resp_recvd))
     return d_resp_recvd.addCallback(cb_process_resp, response)
@@ -145,6 +144,15 @@ class SwiftConnection:
         self.agent = Agent(reactor, contextFactory, pool=self.pool)
         self.verbose = verbose
 
+    def _form_url(self, path, params):
+        url = "/".join((self.storage_url, path))
+        if params:
+            param_lst = []
+            for k, v in params.iteritems():
+                param_lst.append("%s=%s" % (k, v))
+            url = "%s?%s" % (url, "&".join(param_lst))
+        return url
+
     def make_request(self, method, path, params=None, headers=None, body=None):
         h = {
             'User-Agent': [self.user_agent],
@@ -156,15 +164,9 @@ class SwiftConnection:
                 else:
                     h[k] = v
 
-        url = "/".join((self.storage_url, path))
-        if params:
-            param_lst = []
-            for k, v in params.iteritems():
-                param_lst.append("%s=%s" % (k, v))
-            url = "%s?%s" % (url, "&".join(param_lst))
-
         def doRequest(ignored):
             h['X-Auth-Token'] = [self.auth_token]
+            url = self._form_url(path, params)
             if self.verbose:
                 log.msg('Request: %s %s, headers: %s' % (method, url, h))
             return self.agent.request(method, url, Headers(h), body)
@@ -209,10 +211,15 @@ class SwiftConnection:
         d.addCallback(format_head_response)
         return d
 
-    def get_account(self, marker=None):
+    def get_account(self, limit=None, marker=None, end_marker=None):
         params = {'format': 'json'}
+        if limit:
+            params['limit'] = str(limit)
         if marker:
             params['marker'] = quote(marker)
+        if marker:
+            params['end_marker'] = quote(end_marker)
+
         d = self.make_request('GET', '', params=params)
         d.addCallback(cb_recv_resp, load_body=True)
         d.addCallback(cb_json_decode)
@@ -224,19 +231,22 @@ class SwiftConnection:
         d.addCallback(format_head_response)
         return d
 
-    def get_container(self, container, marker=None, prefix=None, path=None,
-                      delimiter=None, limit=None):
+    def get_container(self, container, limit=None, marker=None,
+                      end_marker=None, prefix=None, path=None, delimiter=None):
         params = {'format': 'json'}
-        if marker:
-            params['marker'] = quote(marker)
-        if path:
-            params['path'] = quote(path)
-        if prefix:
-            params['prefix'] = quote(prefix)
-        if delimiter:
-            params['delimiter'] = quote(delimiter)
         if limit:
             params['limit'] = str(limit)
+        if marker:
+            params['marker'] = quote(marker)
+        if marker:
+            params['end_marker'] = quote(end_marker)
+        if prefix:
+            params['prefix'] = quote(prefix)
+        if path:
+            params['path'] = quote(path)
+        if delimiter:
+            params['delimiter'] = quote(delimiter)
+
         d = self.make_request('GET', quote(container), params=params)
         d.addCallback(cb_recv_resp, load_body=True)
         d.addCallback(cb_json_decode)

@@ -9,7 +9,7 @@ from twisted.internet import defer, protocol
 from twisted.web.http_headers import Headers
 from twisted.web._newclient import ResponseDone
 
-from swftp.swift import SwiftConnection
+from swftp.swift import SwiftConnection, cb_recv_resp, ResponseReceiver
 
 
 class StubWebAgent(protocol.Protocol):
@@ -26,7 +26,7 @@ class StubResponse(object):
     def __init__(self, code, headers=None, body=None):
         self.version = ('HTTP', 1, 1)
         self.code = code
-        self.headers = headers or {}
+        self.headers = headers or Headers()
         self.body = body or ''
         self.length = len(self.body)
         self.producing = True
@@ -71,7 +71,7 @@ class SwiftConnectionTest(unittest.TestCase):
         self.assertEqual(conn.auth_token, None)
         self.assertEqual(conn.verbose, True)
         self.assertIsNotNone(conn.agent)
-        self.assertEqual(conn.agent._pool, pool)
+        self.assertEqual(conn.pool, pool)
 
     def test_make_request(self):
         make_request = self.conn.make_request('method', 'path/to/resource',
@@ -88,14 +88,20 @@ class SwiftConnectionTest(unittest.TestCase):
                 'user-agent': ['Twisted Swift'],
                 'x-auth-token': ['TOKEN_123']}),
             'body'))
-        self.assertEqual(kwargs, {})
 
         response = StubResponse(200, body='some body')
         d.callback(response)
 
         def cbCheckResponse(resp):
             self.assertEqual(resp, response)
+            return resp
         make_request.addCallback(cbCheckResponse)
+        make_request.addCallback(cb_recv_resp, load_body=True)
+
+        def cbCheckResponseWithBody(resp):
+            self.assertEqual(resp, (response, 'some body'))
+            return resp
+        make_request.addCallback(cbCheckResponseWithBody)
         return make_request
 
     def test_make_request_failed_auth(self):
@@ -115,7 +121,6 @@ class SwiftConnectionTest(unittest.TestCase):
                 'user-agent': ['Twisted Swift'],
                 'x-auth-token': ['TOKEN_123']}),
             'body'))
-        self.assertEqual(kwargs, {})
 
         # Return a 401
         response = StubResponse(401)
@@ -131,7 +136,6 @@ class SwiftConnectionTest(unittest.TestCase):
                 'user-agent': ['Twisted Swift'],
                 'x-auth-user': ['username'],
                 'x-auth-key': ['api_key']})))
-        self.assertEqual(kwargs, {})
 
         # Return a 200 for the auth request
         response = StubResponse(200, headers=Headers({
@@ -149,13 +153,12 @@ class SwiftConnectionTest(unittest.TestCase):
         d, args, kwargs = self.agent.requests[2]
         self.assertEqual(args, (
             'method',
-            'http://127.0.0.1:8080/v1/AUTH_user/path/to/resource?param=value',
+            'AUTHED_STORAGE_URL/path/to/resource?param=value',
             Headers({
                 'header': ['value'],
                 'user-agent': ['Twisted Swift'],
                 'x-auth-token': ['AUTHED_TOKEN']}),
             'body'))
-        self.assertEqual(kwargs, {})
 
         # Return a 200 for the second attempt
         response = StubResponse(200)
@@ -177,7 +180,6 @@ class SwiftConnectionTest(unittest.TestCase):
                 'user-agent': ['Twisted Swift'],
                 'x-auth-user': ['username'],
                 'x-auth-key': ['api_key']})))
-        self.assertEqual(kwargs, {})
 
         response = StubResponse(200, headers=Headers({
             'x-storage-url': ['AUTHED_STORAGE_URL'],
@@ -191,3 +193,303 @@ class SwiftConnectionTest(unittest.TestCase):
             self.assertEqual(resp, (response, ''))
         auth_d.addCallback(cbCheckResponse)
         return auth_d
+
+    def test_head_account(self):
+        make_request = self.conn.head_account()
+        self.assertEqual(len(self.agent.requests), 1)
+        d, args, kwargs = self.agent.requests[0]
+        self.assertEqual(args, (
+            'HEAD', 'http://127.0.0.1:8080/v1/AUTH_user/',
+            Headers({
+                'user-agent': ['Twisted Swift'],
+                'x-auth-token': ['TOKEN_123']}),
+            None))
+
+        response = StubResponse(204, headers=Headers({
+            'X-Account-Container-Count': ['3'],
+            'X-Account-Bytes-Used': ['323479'],
+        }))
+        d.callback(response)
+
+        def cbCheckResponse(resp):
+            self.assertEqual(resp, {
+                'x-account-bytes-used': '323479',
+                'x-account-container-count': '3'
+            })
+            return resp
+        make_request.addCallback(cbCheckResponse)
+        return make_request
+
+    def test_get_account(self):
+        make_request = self.conn.get_account(limit=10,
+                                             marker='test_container_0',
+                                             end_marker='test_container_3')
+        self.assertEqual(len(self.agent.requests), 1)
+        d, args, kwargs = self.agent.requests[0]
+        self.assertEqual(args, (
+            'GET',
+            'http://127.0.0.1:8080/v1/AUTH_user/?marker=test_container_0'
+            '&limit=10&end_marker=test_container_3&format=json',
+            Headers({
+                'user-agent': ['Twisted Swift'],
+                'x-auth-token': ['TOKEN_123']}),
+            None))
+
+        response = StubResponse(200, body='''[
+    {"name":"test_container_1", "count":2, "bytes":78},
+    {"name":"test_container_2", "count":1, "bytes":17}
+]''')
+        d.callback(response)
+
+        def cbCheckResponse(resp):
+            self.assertEqual(resp, (response, [
+                {u'bytes': 78, u'count': 2, u'name': u'test_container_1'},
+                {u'bytes': 17, u'count': 1, u'name': u'test_container_2'}
+            ]))
+            return resp
+        make_request.addCallback(cbCheckResponse)
+        return make_request
+
+    def test_head_container(self):
+        make_request = self.conn.head_container('container')
+        self.assertEqual(len(self.agent.requests), 1)
+        d, args, kwargs = self.agent.requests[0]
+        self.assertEqual(args, (
+            'HEAD', 'http://127.0.0.1:8080/v1/AUTH_user/container',
+            Headers({
+                'user-agent': ['Twisted Swift'],
+                'x-auth-token': ['TOKEN_123']}),
+            None))
+
+        response = StubResponse(200, headers=Headers({
+            'X-Container-Object-Count': ['7'],
+            'X-Container-Bytes-Used': ['413'],
+            'X-Container-Meta-InspectedBy': ['JackWolf'],
+        }))
+        d.callback(response)
+
+        def cbCheckResponse(resp):
+            self.assertEqual(resp, {
+                'x-container-bytes-used': '413',
+                'x-container-meta-inspectedby': 'JackWolf',
+                'x-container-object-count': '7'
+            })
+            return resp
+        make_request.addCallback(cbCheckResponse)
+        return make_request
+
+    def test_get_container(self):
+        make_request = self.conn.get_container('container',
+                                               limit=10,
+                                               marker='test_obj_0',
+                                               end_marker='test_obj_3',
+                                               prefix='test_obj', path='path',
+                                               delimiter='/')
+        self.assertEqual(len(self.agent.requests), 1)
+        d, args, kwargs = self.agent.requests[0]
+        self.assertEqual(args, (
+            'GET',
+            'http://127.0.0.1:8080/v1/AUTH_user/container'
+            '?end_marker=test_obj_3&format=json&delimiter=/&prefix=test_obj'
+            '&limit=10&marker=test_obj_0&path=path',
+            Headers({
+                'user-agent': ['Twisted Swift'],
+                'x-auth-token': ['TOKEN_123']}),
+            None))
+
+        response = StubResponse(200, body='''[
+   {"name":"test_obj_1",
+    "hash":"4281c348eaf83e70ddce0e07221c3d28",
+    "bytes":14,
+    "content_type":"application\/octet-stream",
+    "last_modified":"2009-02-03T05:26:32.612278"},
+   {"name":"test_obj_2",
+    "hash":"b039efe731ad111bc1b0ef221c3849d0",
+    "bytes":64,
+    "content_type":"application\/octet-stream",
+    "last_modified":"2009-02-03T05:26:32.612278"}
+]''')
+        d.callback(response)
+
+        def cbCheckResponse(resp):
+            self.assertEqual(resp, (response, [{
+                u'bytes': 14,
+                u'content_type': u'application/octet-stream',
+                u'hash': u'4281c348eaf83e70ddce0e07221c3d28',
+                u'last_modified': u'2009-02-03T05:26:32.612278',
+                u'name': u'test_obj_1'
+            }, {
+                u'bytes': 64,
+                u'content_type': u'application/octet-stream',
+                u'hash': u'b039efe731ad111bc1b0ef221c3849d0',
+                u'last_modified': u'2009-02-03T05:26:32.612278',
+                u'name': u'test_obj_2'
+            }]))
+            return resp
+        make_request.addCallback(cbCheckResponse)
+        return make_request
+
+    def test_put_container(self):
+        make_request = self.conn.put_container('container')
+        self.assertEqual(len(self.agent.requests), 1)
+        d, args, kwargs = self.agent.requests[0]
+        self.assertEqual(args, (
+            'PUT',
+            'http://127.0.0.1:8080/v1/AUTH_user/container',
+            Headers({
+                'user-agent': ['Twisted Swift'],
+                'x-auth-token': ['TOKEN_123']}),
+            None))
+
+        response = StubResponse(201)
+        d.callback(response)
+
+        def cbCheckResponse(resp):
+            self.assertEqual(resp, (response, None))
+            return resp
+        make_request.addCallback(cbCheckResponse)
+        return make_request
+
+    def test_delete_container(self):
+        make_request = self.conn.delete_container('container')
+        self.assertEqual(len(self.agent.requests), 1)
+        d, args, kwargs = self.agent.requests[0]
+        self.assertEqual(args, (
+            'DELETE',
+            'http://127.0.0.1:8080/v1/AUTH_user/container',
+            Headers({
+                'user-agent': ['Twisted Swift'],
+                'x-auth-token': ['TOKEN_123']}),
+            None))
+
+        response = StubResponse(204)
+        d.callback(response)
+
+        def cbCheckResponse(resp):
+            self.assertEqual(resp, (response, None))
+            return resp
+        make_request.addCallback(cbCheckResponse)
+        return make_request
+
+    def test_head_object(self):
+        make_request = self.conn.head_object('container', 'object')
+        self.assertEqual(len(self.agent.requests), 1)
+        d, args, kwargs = self.agent.requests[0]
+        self.assertEqual(args, (
+            'HEAD', 'http://127.0.0.1:8080/v1/AUTH_user/container/object',
+            Headers({
+                'user-agent': ['Twisted Swift'],
+                'x-auth-token': ['TOKEN_123']}),
+            None))
+
+        response = StubResponse(200, headers=Headers({
+            'Last-Modified': ['Fri, 12 Jun 2010 13:40:18 GMT'],
+            'ETag': ['8a964ee2a5e88be344f36c22562a6486'],
+            'Content-Length': ['512000'],
+            'Content-Type': ['text/plain; charset=UTF-8'],
+            'X-Object-Meta-Meat': ['Bacon'],
+            'X-Object-Meta-Fruit': ['Bacon'],
+            'X-Object-Meta-Veggie': ['Bacon'],
+            'X-Object-Meta-Dairy': ['Bacon'],
+        }))
+        d.callback(response)
+
+        def cbCheckResponse(resp):
+            self.assertEqual(resp, {
+                'content-length': '512000',
+                'content-type': 'text/plain; charset=UTF-8',
+                'etag': '8a964ee2a5e88be344f36c22562a6486',
+                'last-modified': 'Fri, 12 Jun 2010 13:40:18 GMT',
+                'x-object-meta-dairy': 'Bacon',
+                'x-object-meta-fruit': 'Bacon',
+                'x-object-meta-meat': 'Bacon',
+                'x-object-meta-veggie': 'Bacon'
+            })
+            return resp
+        make_request.addCallback(cbCheckResponse)
+        return make_request
+
+    def test_get_object(self):
+        received = defer.Deferred()
+        receiver = ResponseReceiver(received)
+        make_request = self.conn.get_object('container', 'object',
+                                            receiver=receiver)
+        self.assertEqual(len(self.agent.requests), 1)
+        d, args, kwargs = self.agent.requests[0]
+        self.assertEqual(args, (
+            'GET', 'http://127.0.0.1:8080/v1/AUTH_user/container/object',
+            Headers({
+                'user-agent': ['Twisted Swift'],
+                'x-auth-token': ['TOKEN_123']}),
+            None))
+
+        response = StubResponse(200, headers=Headers({
+            'Last-Modified': ['Fri, 12 Jun 2010 13:40:18 GMT'],
+            'ETag': ['8a964ee2a5e88be344f36c22562a6486'],
+            'Content-Length': ['512000'],
+            'Content-Type': ['text/plain; charset=UTF-8'],
+            'X-Object-Meta-Meat': ['Bacon'],
+            'X-Object-Meta-Fruit': ['Bacon'],
+            'X-Object-Meta-Veggie': ['Bacon'],
+            'X-Object-Meta-Dairy': ['Bacon'],
+        }), body=' ' * 512000)
+        d.callback(response)
+
+        def cbCheckResponse(resp):
+            self.assertEqual(resp, response)
+            return resp
+        make_request.addCallback(cbCheckResponse)
+
+        def cbCheckResponseBody(resp):
+            self.assertEqual(resp, ' ' * 512000)
+            return resp
+        received.addCallback(cbCheckResponseBody)
+        return defer.gatherResults([make_request, received])
+
+    def test_put_object(self):
+        make_request = self.conn.put_object('container', 'object')
+        self.assertEqual(len(self.agent.requests), 1)
+        d, args, kwargs = self.agent.requests[0]
+        self.assertEqual(args, (
+            'PUT',
+            'http://127.0.0.1:8080/v1/AUTH_user/container/object',
+            Headers({
+                'content-length': ['0'],
+                'user-agent': ['Twisted Swift'],
+                'x-auth-token': ['TOKEN_123']}),
+            None))
+
+        response = StubResponse(201)
+        d.callback(response)
+
+        def cbCheckResponse(resp):
+            self.assertEqual(resp, (response, ''))
+            return resp
+        make_request.addCallback(cbCheckResponse)
+        return make_request
+
+    def test_delete_object(self):
+        make_request = self.conn.delete_object('container', 'object')
+        self.assertEqual(len(self.agent.requests), 1)
+        d, args, kwargs = self.agent.requests[0]
+        self.assertEqual(args, (
+            'DELETE',
+            'http://127.0.0.1:8080/v1/AUTH_user/container/object',
+            Headers({
+                'user-agent': ['Twisted Swift'],
+                'x-auth-token': ['TOKEN_123']}),
+            None))
+
+        response = StubResponse(204)
+        d.callback(response)
+
+        def cbCheckResponse(resp):
+            self.assertEqual(resp, (response, None))
+            return resp
+        make_request.addCallback(cbCheckResponse)
+        return make_request
+
+
+class ThrottledSwiftConnectionTest(unittest.TestCase):
+    # TODO
+    pass
