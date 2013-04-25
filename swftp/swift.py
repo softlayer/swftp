@@ -139,14 +139,12 @@ class SwiftConnection:
         self.api_key = api_key
         self.storage_url = None
         self.auth_token = None
-        self.contextFactory = WebClientContextFactory()
-        self.contextFactory.noisy = False
-        self.pool = pool
+        contextFactory = WebClientContextFactory()
+        contextFactory.noisy = False
+        self.agent = Agent(reactor, contextFactory, pool=pool)
         self.verbose = verbose
-        self.agent = Agent(reactor, self.contextFactory, pool=self.pool)
 
-    def make_request(self, method, path, params=None, headers=None, body=None,
-                     body_reader=None):
+    def make_request(self, method, path, params=None, headers=None, body=None):
         h = {
             'User-Agent': [self.user_agent],
         }

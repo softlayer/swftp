@@ -144,7 +144,7 @@ def makeService(options):
         ).setServiceParent(sftp_service)
 
     authdb = SwiftBasedAuthDB(
-        auth_url=c.get('sftp', 'auth_url'),
+        c.get('sftp', 'auth_url'),
         global_max_concurrency=c.getint('ftp', 'num_persistent_connections'),
         max_concurrency=c.getint('sftp', 'num_connections_per_session'),
         timeout=c.getint('sftp', 'connection_timeout'),

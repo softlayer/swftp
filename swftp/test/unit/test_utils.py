@@ -3,7 +3,60 @@ See COPYING for license information.
 """
 import unittest
 
-from swftp.utils import try_datetime_parse
+from twisted.python import log
+
+from swftp.utils import try_datetime_parse, MetricCollector
+
+
+class MetricCollectorTest(unittest.TestCase):
+    def setUp(self):
+        self.c = MetricCollector()
+
+    def test_init(self):
+        c = MetricCollector(10)
+        self.assertEqual(c.sample_size, 10)
+        self.assertEqual(c.current, {})
+        self.assertEqual(c.totals, {})
+        self.assertEqual(c.samples, {})
+
+        c = MetricCollector(20)
+        self.assertEqual(c.sample_size, 20)
+
+    def test_emit(self):
+        self.c.emit({'metric': 'some_metric'})
+        self.assertEqual(self.c.current['some_metric'], 1)
+
+        self.c.emit({'metric': 'some_metric', 'count': 10})
+        self.assertEqual(self.c.current['some_metric'], 11)
+
+    def test_add_metric(self):
+        self.c.add_metric('some_metric')
+        self.assertEqual(self.c.current['some_metric'], 1)
+        self.assertEqual(self.c.totals['some_metric'], 1)
+
+        self.c.add_metric('some_metric', count=10)
+        self.assertEqual(self.c.current['some_metric'], 11)
+        self.assertEqual(self.c.totals['some_metric'], 11)
+
+    def test_sample(self):
+        self.c.add_metric('some_metric')
+        self.c.sample()
+        self.assertEqual(self.c.samples['some_metric'], [1])
+
+        self.c.add_metric('some_metric')
+        self.c.sample()
+        self.assertEqual(self.c.samples['some_metric'], [1, 1])
+
+        for i in range(15):
+            self.c.add_metric('some_metric', count=i)
+            self.c.sample()
+        self.assertEqual(self.c.samples['some_metric'], range(4, 15))
+
+    def test_attach_logger(self):
+        self.c.start()
+        self.assertIn(self.c.emit, log.theLogPublisher.observers)
+        self.c.stop()
+        self.assertNotIn(self.c.emit, log.theLogPublisher.observers)
 
 
 class DateTimeParseTest(unittest.TestCase):

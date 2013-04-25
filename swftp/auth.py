@@ -18,7 +18,8 @@ class SwiftBasedAuthDB:
         Implements twisted.cred.ICredentialsChecker
 
         :param auth_url: auth endpoint for swift
-        :param pool: A twisted.web.client.HTTPConnectionPool object
+        :param int global_max_concurrency: The max concurrency for the entire
+            server
         :param int max_concurrency: The max concurrency for each
             ThrottledSwiftConnection object
         :param bool verbose: verbose setting
@@ -29,18 +30,16 @@ class SwiftBasedAuthDB:
     )
 
     def __init__(self,
-                 auth_url=None,
-                 pool=None,
+                 auth_url,
                  global_max_concurrency=100,
                  max_concurrency=10,
                  timeout=260,
                  verbose=False):
         self.auth_url = auth_url
-        self.pool = pool
-        self.timeout = timeout
-        self.verbose = verbose
         self.global_max_concurrency = global_max_concurrency
         self.max_concurrency = max_concurrency
+        self.timeout = timeout
+        self.verbose = verbose
 
     def _after_auth(self, result, connection):
         log.msg(metric='auth.succeed')
@@ -48,6 +47,7 @@ class SwiftBasedAuthDB:
 
     def requestAvatarId(self, c):
         creds = credentials.IUsernamePassword(c, None)
+
         if creds is not None:
             defer.DeferredSemaphore(self.max_concurrency)
 
