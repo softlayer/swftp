@@ -141,7 +141,8 @@ class SwiftConnection:
         self.auth_token = None
         contextFactory = WebClientContextFactory()
         contextFactory.noisy = False
-        self.agent = Agent(reactor, contextFactory, pool=pool)
+        self.pool = pool
+        self.agent = Agent(reactor, contextFactory, pool=self.pool)
         self.verbose = verbose
 
     def make_request(self, method, path, params=None, headers=None, body=None):

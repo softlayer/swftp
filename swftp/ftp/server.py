@@ -71,6 +71,9 @@ class SwiftFTPShell:
     def logout(self):
         self.log_command('logout')
         log.msg(metric='num_clients', count=-1)
+        if self.swiftconn.pool:
+            self.swiftconn.pool.closeCachedConnections()
+        del self.swiftconn
 
     def _fullpath(self, path_parts):
         return '/'.join(path_parts)
