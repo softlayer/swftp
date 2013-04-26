@@ -119,7 +119,6 @@ def makeService(options):
             'command.logout',
             'command.makeDirectory',
             'command.removeDirectory',
-            'command.openFile',
             'command.removeFile',
             'command.rename',
             'command.access',

@@ -8,8 +8,12 @@ from twisted.trial import unittest
 from twisted.internet import defer, protocol
 from twisted.web.http_headers import Headers
 from twisted.web._newclient import ResponseDone
+from twisted.web import error
 
-from swftp.swift import SwiftConnection, cb_recv_resp, ResponseReceiver
+from swftp.swift import (
+    SwiftConnection, ThrottledSwiftConnection, ResponseReceiver,
+    ResponseIgnorer, cb_recv_resp, cb_process_resp, NotFound, UnAuthenticated,
+    UnAuthorized, Conflict, RequestError)
 
 
 class StubWebAgent(protocol.Protocol):
@@ -44,7 +48,8 @@ class StubResponse(object):
 class SwiftConnectionTest(unittest.TestCase):
     def setUp(self):
         self.conn = SwiftConnection(
-            'http://127.0.0.1:8080/auth/v1.0', 'username', 'api_key')
+            'http://127.0.0.1:8080/auth/v1.0', 'username', 'api_key',
+            verbose=True)
         self.agent = StubWebAgent()
         self.conn.agent = self.agent
         self.conn.storage_url = 'http://127.0.0.1:8080/v1/AUTH_user'
@@ -491,5 +496,117 @@ class SwiftConnectionTest(unittest.TestCase):
 
 
 class ThrottledSwiftConnectionTest(unittest.TestCase):
-    # TODO
-    pass
+    def setUp(self):
+        self.agent = StubWebAgent()
+
+    def test_single_lock(self):
+        lock = defer.DeferredLock()
+        conn = ThrottledSwiftConnection(
+            [lock], 'http://127.0.0.1:8080/auth/v1.0', 'username', 'api_key',
+            verbose=True)
+        conn.agent = self.agent
+        conn.storage_url = 'http://127.0.0.1:8080/v1/AUTH_user'
+        conn.auth_token = 'TOKEN_123'
+
+        conn.make_request('method', 'path')
+
+        self.assertEqual(len(self.agent.requests), 1)
+        self.assertEqual(lock.locked, 1)
+
+        conn.make_request('method', 'path2')
+        self.assertEqual(len(self.agent.requests), 1)
+        d, args, kwargs = self.agent.requests[0]
+        d.callback(StubResponse(200))
+
+        self.assertEqual(len(self.agent.requests), 2)
+        d, args, kwargs = self.agent.requests[1]
+        d.callback(StubResponse(200))
+        self.assertEqual(lock.locked, 0)
+
+    def test_multi_lock(self):
+        lock = defer.DeferredLock()
+        sem = defer.DeferredSemaphore(2)
+        conn = ThrottledSwiftConnection(
+            [lock, sem],
+            'http://127.0.0.1:8080/auth/v1.0', 'username', 'api_key',
+            verbose=True)
+        conn.agent = self.agent
+        conn.storage_url = 'http://127.0.0.1:8080/v1/AUTH_user'
+        conn.auth_token = 'TOKEN_123'
+
+        conn.make_request('method', 'path')
+
+        self.assertEqual(len(self.agent.requests), 1)
+        self.assertEqual(lock.locked, 1)
+        self.assertEqual(sem.tokens, 1)
+
+        conn.make_request('method', 'path2')
+        self.assertEqual(len(self.agent.requests), 1)
+        d, args, kwargs = self.agent.requests[0]
+        d.callback(StubResponse(200))
+
+        self.assertEqual(len(self.agent.requests), 2)
+        d, args, kwargs = self.agent.requests[1]
+        d.callback(StubResponse(200))
+        self.assertEqual(lock.locked, 0)
+        self.assertEqual(sem.tokens, 2)
+
+
+class HelpersTest(unittest.TestCase):
+
+    def test_cb_process_resp(self):
+        resp = StubResponse(200)
+        response, body = cb_process_resp(None, resp)
+        self.assertEqual(response, resp)
+        self.assertEqual(body, None)
+
+        # > 404 raises NotFound
+        self.assertRaises(NotFound, cb_process_resp, None, StubResponse(404))
+
+        # > 401 raises UnAuthenticated
+        self.assertRaises(
+            UnAuthenticated, cb_process_resp, None, StubResponse(401))
+
+        # > 403 raises UnAuthorized
+        self.assertRaises(
+            UnAuthorized, cb_process_resp, None, StubResponse(403))
+
+        # > 409 raises Conflict
+        self.assertRaises(Conflict, cb_process_resp, None, StubResponse(409))
+
+        # > 300-399 raises a RequestError
+        self.assertRaises(
+            error.PageRedirect, cb_process_resp, None, StubResponse(300))
+
+        # > 400 raises a RequestError
+        self.assertRaises(
+            RequestError, cb_process_resp, None, StubResponse(400))
+
+    def test_response_ignorer(self):
+        finished = defer.Deferred()
+        ignorer = ResponseIgnorer(finished)
+        transport = MagicMock()
+
+        ignorer.makeConnection(transport)
+        transport.stopProducing.assert_called_with()
+
+        ignorer.dataReceived(None)
+        ignorer.connectionLost(None)
+
+        return finished
+
+    def test_response_receiver(self):
+        finished = defer.Deferred()
+        recv = ResponseReceiver(finished)
+        recv.dataReceived('bytes')
+        recv.dataReceived(' go')
+        recv.dataReceived('here.')
+
+        err = error.Error('Something Happened')
+        recv.connectionLost(Failure(err))
+
+        def checkError(result):
+            result.trap(error.Error)
+            self.assertRaises(error.Error, result.raiseException)
+        finished.addBoth(checkError)
+        return finished

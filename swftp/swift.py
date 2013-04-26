@@ -86,11 +86,11 @@ def cb_recv_resp(response, load_body=False, receiver=None):
             return response
         else:
             response.deliverBody(ResponseIgnorer(d_resp_recvd))
-    return d_resp_recvd.addCallback(cb_process_resp, response)
+    d_resp_recvd.addCallback(cb_process_resp, response)
+    return d_resp_recvd
 
 
 def cb_process_resp(body, response):
-    # Emulate HTTPClientFactory and raise t.w.e.Error if we have errors.
     if response.code == 404:
         raise NotFound(response.code, body)
     if response.code == 401:
@@ -121,8 +121,7 @@ def cb_json_decode(result):
 
 
 class SwiftConnection:
-    """
-        A basic connection class to interface with OpenStack Swift.
+    """ A basic connection class to interface with OpenStack Swift.
 
         :param auth_url: auth endpoint for swift
         :param username: username for swift
@@ -154,15 +153,25 @@ class SwiftConnection:
         return url
 
     def make_request(self, method, path, params=None, headers=None, body=None):
+        """ Make an HTTP request against Swift. This method will try once to
+        re-authenticate to swift after receiving a 401 or 403 and then
+        (if successful) will re-attempt the request.
+
+        :param method: HTTP Method. E.G. GET, POST, PUT
+        :param path: Path to be appended to the storage url
+        :param dict params: Parameters to be used at the query parameter
+        :param dict headers: Additional parameters for the request
+        :param body: Object which implements twisted.web.iweb.IBodyProducer
+
+        :returns t.w.c.Response:
+
+        """
         h = {
             'User-Agent': [self.user_agent],
         }
         if headers:
             for k, v in headers.iteritems():
-                if not isinstance(v, list):
-                    h[k] = [v]
-                else:
-                    h[k] = v
+                h[k] = [v]
 
         def doRequest(ignored):
             h['X-Auth-Token'] = [self.auth_token]
@@ -195,6 +204,11 @@ class SwiftConnection:
         return result
 
     def authenticate(self):
+        """ Authenticate against Swift (using v1 auth)
+
+        :returns t.w.c.Response:
+
+        """
         headers = {
             'User-Agent': [self.user_agent],
             'X-Auth-User': [self.username],
@@ -206,12 +220,22 @@ class SwiftConnection:
         return d
 
     def head_account(self):
+        " Get details of the account "
         d = self.make_request('HEAD', '')
         d.addCallback(cb_recv_resp)
         d.addCallback(format_head_response)
         return d
 
     def get_account(self, limit=None, marker=None, end_marker=None):
+        """ Get listing of containers in the account
+
+        :param int limit: The max number of results to return
+        :param marker: container names greater than this value
+        :param end_marker: container names less than this value
+
+        :returns t.w.c.Response, list:
+
+        """
         params = {'format': 'json'}
         if limit:
             params['limit'] = str(limit)
@@ -226,6 +250,13 @@ class SwiftConnection:
         return d
 
     def head_container(self, container):
+        """ Get details on a container
+
+        :param container: The container name
+
+        :returns dict:
+
+        """
         d = self.make_request('HEAD', quote(container))
         d.addCallback(cb_recv_resp)
         d.addCallback(format_head_response)
@@ -233,6 +264,18 @@ class SwiftConnection:
 
     def get_container(self, container, limit=None, marker=None,
                       end_marker=None, prefix=None, path=None, delimiter=None):
+        """ Create a container
+
+        :param container: The container name
+        :param int limit: The max number of results to return
+        :param marker: object names greater than this value
+        :param end_marker: object names less than this value
+        :param prefix: return objects with names that start with this value
+        :param delimiter: Delimiter to use for hierarchy
+
+        :returns t.w.c.Response, list:
+
+        """
         params = {'format': 'json'}
         if limit:
             params['limit'] = str(limit)
@@ -253,17 +296,39 @@ class SwiftConnection:
         return d
 
     def put_container(self, container, headers=None):
-        d = self.make_request('PUT', quote(container),
-                              headers=headers)
+        """ Create a container
+
+        :param container: The container name
+        :param header: Optional headers to add to the request
+
+        :returns t.w.c.Response:
+
+        """
+        d = self.make_request('PUT', quote(container), headers=headers)
         d.addCallback(cb_recv_resp)
         return d
 
     def delete_container(self, container):
+        """ Delete a container
+
+        :param container: The container name
+
+        :returns t.w.c.Response:
+
+        """
         d = self.make_request('DELETE', quote(container))
         d.addCallback(cb_recv_resp)
         return d
 
     def head_object(self, container, path):
+        """ Get details about an object
+
+        :param container: The container name
+        :param path: The object name/path
+
+        :returns dict:
+
+        """
         _path = "/".join((quote(container), quote(path)))
         d = self.make_request('HEAD', _path)
         d.addCallback(cb_recv_resp)
@@ -271,12 +336,33 @@ class SwiftConnection:
         return d
 
     def get_object(self, container, path, headers=None, receiver=None):
+        """ Download an object
+
+        :param container: The container name
+        :param path: The object name/path
+        :param dict headers: Extra headers to use with the HTTP request
+        :param receiver: A twisted.internet.protocol.Protocol that will receive
+                         the contents of the object
+
+        :returns t.w.c.Response:
+
+        """
         _path = "/".join((quote(container), quote(path)))
         d = self.make_request('GET', _path, headers=headers)
         d.addCallback(cb_recv_resp, receiver=receiver)
         return d
 
     def put_object(self, container, path, headers=None, body=None):
+        """ Create a new object
+
+        :param container: The container name
+        :param path: The object name/path
+        :param dict headers: Extra headers to use with the HTTP request
+        :param body: Object which implements twisted.web.iweb.IBodyProducer
+
+        :returns t.w.c.Response:
+
+        """
         if not headers:
             headers = {}
         if not body:
@@ -287,6 +373,14 @@ class SwiftConnection:
         return d
 
     def delete_object(self, container, path):
+        """ Delete an object
+
+        :param container: The container name
+        :param path: The object name/path
+
+        :returns t.w.c.Response:
+
+        """
         _path = "/".join((quote(container), quote(path)))
         d = self.make_request('DELETE', _path)
         d.addCallback(cb_recv_resp)
@@ -312,19 +406,11 @@ class ThrottledSwiftConnection(SwiftConnection):
     def _release_all(self, result):
         for i, lock in enumerate(self.locks):
             lock.release()
-            if self.verbose:
-                log.msg(
-                    'Released Lock %s. [%s free/%s total]' %
-                    (i, lock.tokens, lock.limit))
         return result
 
     def _aquire_all(self):
         d = succeed(None)
         for i, lock in enumerate(self.locks):
-            if self.verbose:
-                log.msg(
-                    'Attaining Lock %s. [%s free/%s total]' %
-                    (i, lock.tokens, lock.limit))
             d.addCallback(lambda r: lock.acquire())
         return d
 

@@ -16,16 +16,16 @@ from stat import S_ISDIR
 import os
 import time
 
-conf = get_config()
+CONFIG = get_config()
 
 
 class SFTPFuncTest(unittest.TestCase):
     @defer.inlineCallbacks
     def setUp(self):
         self.pool = HTTPConnectionPool(reactor, persistent=True)
-        self.swift = get_swift_client(conf, pool=self.pool)
+        self.swift = get_swift_client(CONFIG, pool=self.pool)
         self.tmpdir = tempfile.mkdtemp()
-        self.sftp = get_sftp_client(conf)
+        self.sftp = get_sftp_client(CONFIG)
         yield clean_swift(self.swift)
 
     @defer.inlineCallbacks
@@ -52,7 +52,7 @@ def get_sftp_client(config):
 
 class BasicTests(unittest.TestCase):
     def test_get_client(self):
-        sftp = get_sftp_client(conf)
+        sftp = get_sftp_client(CONFIG)
         sftp.stat('/')
         sftp.close()
 
@@ -60,13 +60,13 @@ class BasicTests(unittest.TestCase):
 class ClientTests(unittest.TestCase):
     def test_get_many_client(self):
         for i in range(32):
-            sftp = get_sftp_client(conf)
+            sftp = get_sftp_client(CONFIG)
             sftp.close()
 
     def test_get_many_concurrent(self):
         connections = []
         for i in range(32):
-            sftp = get_sftp_client(conf)
+            sftp = get_sftp_client(CONFIG)
             connections.append(sftp)
         time.sleep(10)
         for sftp in connections:
@@ -291,3 +291,70 @@ class ListingTests(SFTPFuncTest):
         time.sleep(2)
         listing = self.sftp.listdir('sftp_tests')
         self.assertEqual(10, len(listing))
+
+
+class MkdirTests(SFTPFuncTest):
+
+    @defer.inlineCallbacks
+    def test_make_container(self):
+        self.sftp.mkdir('sftp_tests')
+        yield self.swift.head_container('sftp_tests')
+
+    @defer.inlineCallbacks
+    def test_make_object_dir(self):
+        yield self.swift.put_container('sftp_tests')
+        self.sftp.mkdir('sftp_tests/mkdir')
+        yield self.swift.head_object('sftp_tests', 'mkdir')
+
+    @defer.inlineCallbacks
+    def test_make_nested_object_dir(self):
+        yield self.swift.put_container('sftp_tests')
+        self.sftp.mkdir('sftp_tests/nested/mkdir')
+        yield self.swift.head_object('sftp_tests', 'nested/mkdir')
+
+
+class RmdirTests(SFTPFuncTest):
+
+    @defer.inlineCallbacks
+    def test_rmdir_container(self):
+        yield self.swift.put_container('sftp_tests')
+        self.sftp.rmdir('sftp_tests/nested/mkdir')
+        resp, listing = yield self.swift.get_account('sftp_tests')
+        self.assertNotIn('sftp_tests', listing)
+
+    @defer.inlineCallbacks
+    def test_rmdir_container_populated(self):
+        yield self.swift.put_container('sftp_tests')
+        yield self.swift.put_object('sftp_tests', utf8_chars.encode('utf-8'))
+        self.assertRaises(IOError, self.sftp.rmdir, 'sftp_tests')
+
+    @defer.inlineCallbacks
+    def test_rmdir_object_dir(self):
+        yield self.swift.put_container('sftp_tests')
+        yield self.swift.put_object('sftp_tests', 'nested/dir')
+        self.sftp.rmdir('sftp_tests/nested/dir')
+        resp, listing = yield self.swift.get_container('sftp_tests')
+        self.assertEqual(len(listing), 0)
+
+    @defer.inlineCallbacks
+    def test_rmdir_nested_object_dir(self):
+        yield self.swift.put_container('sftp_tests')
+        self.sftp.rmdir('sftp_tests/nested/mkdir')
+        resp, listing = yield self.swift.get_container('sftp_tests')
+        self.assertEqual(len(listing), 0)
+
+
+class RemoveTests(SFTPFuncTest):
+
+    @defer.inlineCallbacks
+    def test_remove_file(self):
+        yield self.swift.put_container('sftp_tests')
+        yield self.swift.put_object('sftp_tests', utf8_chars.encode('utf-8'))
+        self.sftp.remove('sftp_tests/%s' % utf8_chars.encode('utf-8'))
+        resp, listing = yield self.swift.get_container('sftp_tests')
+        self.assertEqual(len(listing), 0)
+
+    @defer.inlineCallbacks
+    def test_remove_container(self):
+        yield self.swift.put_container('sftp_tests')
+        self.assertRaises(IOError, self.sftp.remove, 'sftp_tests')

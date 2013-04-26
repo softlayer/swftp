@@ -105,8 +105,10 @@ class SwiftFTPShell:
         fullpath = self._fullpath(path)
 
         def errback(failure):
-            failure.trap(NotFound)
-        d = self.swiftfilesystem.removeFile(fullpath)
+            failure.trap(NotFound, NotImplementedError)
+            if failure.check(NotImplementedError):
+                return defer.fail(IsADirectoryError(fullpath))
+        d = defer.maybeDeferred(self.swiftfilesystem.removeFile, fullpath)
         d.addErrback(errback)
         return d
 
