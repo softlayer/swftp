@@ -8,7 +8,6 @@ from twisted.web.server import Site
 from twisted.web.resource import Resource
 from twisted.web.http_headers import Headers
 from twisted.application import internet, service
-from twisted.application.internet import TimerService
 
 from swftp.utils import MetricCollector
 
@@ -67,5 +66,5 @@ def makeService(host='127.0.0.1', port=8125, known_fields=None):
         port,
         site,
         interface=host).setServiceParent(s)
-    TimerService(1, sample_metrics).setServiceParent(s)
+    internet.TimerService(1, sample_metrics).setServiceParent(s)
     return s
