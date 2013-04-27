@@ -1,5 +1,5 @@
 #!/usr/bin/python
-from setuptools import setup
+from setuptools import setup, find_packages
 import sys
 
 from swftp import VERSION
@@ -25,7 +25,7 @@ setup(
     url='https://github.com/softlayer/swftp',
     description=short_description,
     long_description=long_description,
-    packages=['swftp', 'swftp/sftp', 'swftp/ftp', 'twisted.plugins'],
+    packages=find_packages() + ['twisted.plugins'],
     install_requires=requires,
     entry_points={
         'console_scripts': ['swftp-ftp = swftp.ftp.service:run',
@@ -33,7 +33,9 @@ setup(
     },
     package_data={
         'twisted.plugins': ['twisted/plugins/swftp_ftp.py',
-                            'twisted/plugins/swftp_sftp.py']},
+                            'twisted/plugins/swftp_sftp.py'],
+        'swftp.test': ['test.conf', 'test_id_rsa', 'test_id_rsa.pub'],
+    },
     data_files=[
         ('', ['README.md']),
         ('', ['etc/swftp/swftp.conf.sample']),

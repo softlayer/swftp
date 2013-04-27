@@ -4,11 +4,11 @@ See COPYING for license information.
 import json
 from copy import copy
 
-from twisted.internet import task
 from twisted.web.server import Site
 from twisted.web.resource import Resource
 from twisted.web.http_headers import Headers
-from twisted.application import internet
+from twisted.application import internet, service
+from twisted.application.internet import TimerService
 
 from swftp.utils import MetricCollector
 
@@ -62,11 +62,10 @@ def makeService(host='127.0.0.1', port=8125, known_fields=None):
     def sample_metrics():
         metric_collector.sample()
 
-    loop = task.LoopingCall(sample_metrics)
-    loop.start(1)
-
-    service = internet.TCPServer(
+    s = service.MultiService()
+    internet.TCPServer(
         port,
         site,
-        interface=host)
-    return service
+        interface=host).setServiceParent(s)
+    TimerService(1, sample_metrics).setServiceParent(s)
+    return s

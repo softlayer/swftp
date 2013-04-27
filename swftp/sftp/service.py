@@ -129,6 +129,7 @@ def makeService(options):
         known_fields = [
             'command.login',
             'command.logout',
+            'command.gotVersion',
             'command.openFile',
             'command.removeFile',
             'command.renameFile',
@@ -145,7 +146,7 @@ def makeService(options):
 
     authdb = SwiftBasedAuthDB(
         c.get('sftp', 'auth_url'),
-        global_max_concurrency=c.getint('ftp', 'num_persistent_connections'),
+        global_max_concurrency=c.getint('sftp', 'num_persistent_connections'),
         max_concurrency=c.getint('sftp', 'num_connections_per_session'),
         timeout=c.getint('sftp', 'connection_timeout'),
         verbose=c.getboolean('sftp', 'verbose'))
