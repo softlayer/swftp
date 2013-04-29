@@ -4,12 +4,13 @@ SwFTP is an FTP and SFTP interface for Openstack Object Storage (swift). It will
 
 Features
 --------
-* Configurable auth endpoint to use any OpenStack Swift installation.
-* Server-wide Configurable HTTP Connection Pool for Swift Communications (size and timeout).
-* Support for HTTPS communication to the backend OpenStack Object Storage cluster.
-* Configurable welcome message for the FTP server.
-* Simple Installation (pip install swftp).
+* Configurable auth endpoint to use any OpenStack Swift installation
+* Server-wide Configurable HTTP Connection Pool for Swift Communications (size and timeout)
+* Support for HTTPS communication to the backend OpenStack Object Storage cluster
+* Simple Installation `pip install swftp`
 * StatsD Support
+* Stats Web Interface
+* Chef Cookbook: https://github.com/softlayer/chef-swftp
 
 Requirements
 ------------
@@ -169,7 +170,7 @@ Packaged with SwFTP are a set of example init scripts, upstart scripts. They are
     * /etc/init/swftp-sftp
 * Supervisor
     * /etc/supervisor/conf.d/swftp.conf
-* Example swftp.conf file.
+* Example swftp.conf file
     * /etc/swftp/swftp.conf.sample
 
 Stats Web Interface
@@ -259,6 +260,36 @@ Statsd support relies on [txStatsD](https://pypi.python.org/pypi/txStatsD). If t
 * stats.[prefix].command.removeFile
 * stats.[prefix].command.rename
 * stats.[prefix].command.stat
+
+Development
+-----------
+Development works with a fork and pull request process. Feel free submit pull requests.
+
+To run the tests, run
+```bash
+$ trial swftp
+```
+
+To run tests against live swftp servers (ftp and sftp) it requires a test config. The default location is `/etc/swftp/test.conf` but can be set with the SWFTP_TEST_CONFIG_FILE environmental variable. Here is a sample test config
+
+```
+[func_test]
+auth_host = 127.0.0.1
+auth_port = 8080
+auth_ssl = no
+auth_prefix = /auth/
+
+account = test
+username = tester
+password = testing
+
+sftp_host = 127.0.0.1
+sftp_port = 5022
+
+ftp_host = 127.0.0.1
+ftp_port = 5021
+
+```
 
 License
 -------

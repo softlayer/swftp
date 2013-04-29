@@ -1,0 +1,7 @@
+swftp (1.0.6)
+
+    * Adds Optional Stats Web Interface (JSON Output)
+
+    * Less memory usage for SFTP uploads
+
+    * Several Bug Fixes

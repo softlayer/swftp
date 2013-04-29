@@ -1,0 +1,15 @@
+[func_test]
+auth_host = 127.0.0.1
+auth_port = 8080
+auth_ssl = no
+auth_prefix = /auth/
+
+account = test
+username = tester
+password = testing
+
+sftp_host = 127.0.0.1
+sftp_port = 5022
+
+ftp_host = 127.0.0.1
+ftp_port = 5021

@@ -4,7 +4,8 @@ import sys
 
 from swftp import VERSION
 
-short_description = 'SwFTP is an FTP and SFTP interface for Openstack Swift'
+short_description = '''SwFTP is an FTP and SFTP interface for Openstack Object
+Storage (swift)'''
 long_description = short_description
 try:
     long_description = open('README.md').read()

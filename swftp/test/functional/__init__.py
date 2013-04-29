@@ -20,7 +20,7 @@ utf8_chars = u'\uF10F\uD20D\uB30B\u9409\u8508\u5605\u3703\u1801'\
 
 
 def get_config():
-    config_file = os.environ.get('SWIFT_TEST_CONFIG_FILE',
+    config_file = os.environ.get('SWFTP_TEST_CONFIG_FILE',
                                  '/etc/swftp/test.conf')
     section = 'func_test'
     config = ConfigParser.ConfigParser()
