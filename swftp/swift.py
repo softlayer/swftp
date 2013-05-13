@@ -127,11 +127,13 @@ class SwiftConnection:
         :param username: username for swift
         :param api_key: password/api_key for swift
         :param pool: A twisted.web.client.HTTPConnectionPool object
+        :param dict extra_headers: extra HTTP headers to send with each request
         :param bool verbose: verbose setting
     """
     user_agent = 'Twisted Swift'
 
-    def __init__(self, auth_url, username, api_key, pool=None, verbose=False):
+    def __init__(self, auth_url, username, api_key, pool=None,
+                 extra_headers=None, verbose=False):
         self.auth_url = auth_url
         self.username = username
         self.api_key = api_key
@@ -141,6 +143,7 @@ class SwiftConnection:
         contextFactory.noisy = False
         self.pool = pool
         self.agent = Agent(reactor, contextFactory, pool=self.pool)
+        self.extra_headers = extra_headers
         self.verbose = verbose
 
     def _form_url(self, path, params):
@@ -160,7 +163,7 @@ class SwiftConnection:
         :param method: HTTP Method. E.G. GET, POST, PUT
         :param path: Path to be appended to the storage url
         :param dict params: Parameters to be used at the query parameter
-        :param dict headers: Additional parameters for the request
+        :param dict headers: Additional headers for the request
         :param body: Object which implements twisted.web.iweb.IBodyProducer
 
         :returns t.w.c.Response:
@@ -171,6 +174,10 @@ class SwiftConnection:
         }
         if headers:
             for k, v in headers.iteritems():
+                h[k] = [v]
+
+        if self.extra_headers:
+            for k, v in self.extra_headers.iteritems():
                 h[k] = [v]
 
         def doRequest(ignored):
@@ -209,12 +216,17 @@ class SwiftConnection:
         :returns t.w.c.Response:
 
         """
-        headers = {
+        h = {
             'User-Agent': [self.user_agent],
             'X-Auth-User': [self.username],
             'X-Auth-Key': [self.api_key],
         }
-        d = self.agent.request('GET', self.auth_url, Headers(headers))
+
+        if self.extra_headers:
+            for k, v in self.extra_headers.iteritems():
+                h[k] = [v]
+
+        d = self.agent.request('GET', self.auth_url, Headers(h))
         d.addCallback(cb_recv_resp, load_body=True)
         d.addCallback(self.after_authenticate)
         return d

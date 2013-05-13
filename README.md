@@ -115,6 +115,7 @@ pub_key = /etc/swftp/id_rsa.pub
 num_persistent_connections = 20
 num_connections_per_session = 10
 connection_timeout = 240
+extra_headers = X-Swftp: true, X-Forwarded-Proto: SFTP
 
 log_statsd_host = 
 log_statsd_port = 8125
@@ -132,6 +133,7 @@ num_persistent_connections = 20
 num_connections_per_session = 10
 connection_timeout = 240
 welcome_message = Welcome to SwFTP - An FTP/SFTP interface for Openstack Swift
+extra_headers = X-Swftp: true, X-Forwarded-Proto: SFTP
 
 log_statsd_host = 
 log_statsd_port = 8125

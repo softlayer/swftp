@@ -34,11 +34,13 @@ class SwiftBasedAuthDB:
                  global_max_concurrency=100,
                  max_concurrency=10,
                  timeout=260,
+                 extra_headers=None,
                  verbose=False):
         self.auth_url = auth_url
         self.global_max_concurrency = global_max_concurrency
         self.max_concurrency = max_concurrency
         self.timeout = timeout
+        self.extra_headers = extra_headers
         self.verbose = verbose
 
     def _after_auth(self, result, connection):
@@ -66,7 +68,9 @@ class SwiftBasedAuthDB:
 
             conn = ThrottledSwiftConnection(
                 locks, self.auth_url, creds.username, creds.password,
-                pool=pool, verbose=self.verbose)
+                pool=pool,
+                extra_headers=self.extra_headers,
+                verbose=self.verbose)
             conn.user_agent = USER_AGENT
 
             d = conn.authenticate()

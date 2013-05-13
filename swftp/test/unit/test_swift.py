@@ -49,6 +49,7 @@ class SwiftConnectionTest(unittest.TestCase):
     def setUp(self):
         self.conn = SwiftConnection(
             'http://127.0.0.1:8080/auth/v1.0', 'username', 'api_key',
+            extra_headers={'extra': 'header'},
             verbose=True)
         self.agent = StubWebAgent()
         self.conn.agent = self.agent
@@ -91,7 +92,8 @@ class SwiftConnectionTest(unittest.TestCase):
             Headers({
                 'header': ['value'],
                 'user-agent': ['Twisted Swift'],
-                'x-auth-token': ['TOKEN_123']}),
+                'x-auth-token': ['TOKEN_123'],
+                'extra': ['header']}),
             'body'))
 
         response = StubResponse(200, body='some body')
@@ -124,7 +126,8 @@ class SwiftConnectionTest(unittest.TestCase):
             Headers({
                 'header': ['value'],
                 'user-agent': ['Twisted Swift'],
-                'x-auth-token': ['TOKEN_123']}),
+                'x-auth-token': ['TOKEN_123'],
+                'extra': ['header']}),
             'body'))
 
         # Return a 401
@@ -140,7 +143,8 @@ class SwiftConnectionTest(unittest.TestCase):
             Headers({
                 'user-agent': ['Twisted Swift'],
                 'x-auth-user': ['username'],
-                'x-auth-key': ['api_key']})))
+                'x-auth-key': ['api_key'],
+                'extra': ['header']})))
 
         # Return a 200 for the auth request
         response = StubResponse(200, headers=Headers({
@@ -162,7 +166,8 @@ class SwiftConnectionTest(unittest.TestCase):
             Headers({
                 'header': ['value'],
                 'user-agent': ['Twisted Swift'],
-                'x-auth-token': ['AUTHED_TOKEN']}),
+                'x-auth-token': ['AUTHED_TOKEN'],
+                'extra': ['header']}),
             'body'))
 
         # Return a 200 for the second attempt
@@ -184,7 +189,8 @@ class SwiftConnectionTest(unittest.TestCase):
             Headers({
                 'user-agent': ['Twisted Swift'],
                 'x-auth-user': ['username'],
-                'x-auth-key': ['api_key']})))
+                'x-auth-key': ['api_key'],
+                'extra': ['header']})))
 
         response = StubResponse(200, headers=Headers({
             'x-storage-url': ['AUTHED_STORAGE_URL'],
@@ -207,7 +213,8 @@ class SwiftConnectionTest(unittest.TestCase):
             'HEAD', 'http://127.0.0.1:8080/v1/AUTH_user/',
             Headers({
                 'user-agent': ['Twisted Swift'],
-                'x-auth-token': ['TOKEN_123']}),
+                'x-auth-token': ['TOKEN_123'],
+                'extra': ['header']}),
             None))
 
         response = StubResponse(204, headers=Headers({
@@ -237,7 +244,8 @@ class SwiftConnectionTest(unittest.TestCase):
             '&limit=10&end_marker=test_container_3&format=json',
             Headers({
                 'user-agent': ['Twisted Swift'],
-                'x-auth-token': ['TOKEN_123']}),
+                'x-auth-token': ['TOKEN_123'],
+                'extra': ['header']}),
             None))
 
         response = StubResponse(200, body='''[
@@ -263,7 +271,8 @@ class SwiftConnectionTest(unittest.TestCase):
             'HEAD', 'http://127.0.0.1:8080/v1/AUTH_user/container',
             Headers({
                 'user-agent': ['Twisted Swift'],
-                'x-auth-token': ['TOKEN_123']}),
+                'x-auth-token': ['TOKEN_123'],
+                'extra': ['header']}),
             None))
 
         response = StubResponse(200, headers=Headers({
@@ -299,7 +308,8 @@ class SwiftConnectionTest(unittest.TestCase):
             '&limit=10&marker=test_obj_0&path=path',
             Headers({
                 'user-agent': ['Twisted Swift'],
-                'x-auth-token': ['TOKEN_123']}),
+                'x-auth-token': ['TOKEN_123'],
+                'extra': ['header']}),
             None))
 
         response = StubResponse(200, body='''[
@@ -343,7 +353,8 @@ class SwiftConnectionTest(unittest.TestCase):
             'http://127.0.0.1:8080/v1/AUTH_user/container',
             Headers({
                 'user-agent': ['Twisted Swift'],
-                'x-auth-token': ['TOKEN_123']}),
+                'x-auth-token': ['TOKEN_123'],
+                'extra': ['header']}),
             None))
 
         response = StubResponse(201)
@@ -364,7 +375,8 @@ class SwiftConnectionTest(unittest.TestCase):
             'http://127.0.0.1:8080/v1/AUTH_user/container',
             Headers({
                 'user-agent': ['Twisted Swift'],
-                'x-auth-token': ['TOKEN_123']}),
+                'x-auth-token': ['TOKEN_123'],
+                'extra': ['header']}),
             None))
 
         response = StubResponse(204)
@@ -384,7 +396,8 @@ class SwiftConnectionTest(unittest.TestCase):
             'HEAD', 'http://127.0.0.1:8080/v1/AUTH_user/container/object',
             Headers({
                 'user-agent': ['Twisted Swift'],
-                'x-auth-token': ['TOKEN_123']}),
+                'x-auth-token': ['TOKEN_123'],
+                'extra': ['header']}),
             None))
 
         response = StubResponse(200, headers=Headers({
@@ -425,7 +438,8 @@ class SwiftConnectionTest(unittest.TestCase):
             'GET', 'http://127.0.0.1:8080/v1/AUTH_user/container/object',
             Headers({
                 'user-agent': ['Twisted Swift'],
-                'x-auth-token': ['TOKEN_123']}),
+                'x-auth-token': ['TOKEN_123'],
+                'extra': ['header']}),
             None))
 
         response = StubResponse(200, headers=Headers({
@@ -461,7 +475,8 @@ class SwiftConnectionTest(unittest.TestCase):
             Headers({
                 'content-length': ['0'],
                 'user-agent': ['Twisted Swift'],
-                'x-auth-token': ['TOKEN_123']}),
+                'x-auth-token': ['TOKEN_123'],
+                'extra': ['header']}),
             None))
 
         response = StubResponse(201)
@@ -482,7 +497,8 @@ class SwiftConnectionTest(unittest.TestCase):
             'http://127.0.0.1:8080/v1/AUTH_user/container/object',
             Headers({
                 'user-agent': ['Twisted Swift'],
-                'x-auth-token': ['TOKEN_123']}),
+                'x-auth-token': ['TOKEN_123'],
+                'extra': ['header']}),
             None))
 
         response = StubResponse(204)

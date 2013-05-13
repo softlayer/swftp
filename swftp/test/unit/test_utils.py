@@ -7,7 +7,8 @@ import time
 
 from twisted.python import log
 
-from swftp.utils import try_datetime_parse, MetricCollector
+from swftp.utils import (
+    try_datetime_parse, MetricCollector, parse_key_value_config)
 
 
 class MetricCollectorTest(unittest.TestCase):
@@ -97,3 +98,25 @@ class DateTimeParseTest(unittest.TestCase):
     def test_date_short(self):
         result = try_datetime_parse("2012-04-10")
         self.assertEqual(result, 1334016000.0)
+
+
+class ParseKeyValueConfigTest(unittest.TestCase):
+    def test_single(self):
+        res = parse_key_value_config('test: 1')
+        self.assertEqual(res, {'test': '1'})
+
+    def test_multiple(self):
+        res = parse_key_value_config('test: 1, test2: 2')
+        self.assertEqual(res, {'test': '1', 'test2': '2'})
+
+    def test_empty(self):
+        res = parse_key_value_config('')
+        self.assertEqual(res, {})
+
+    def test_duplicate(self):
+        res = parse_key_value_config('test: 1, test: 2')
+        self.assertEqual(res, {'test': '2'})
+
+    def test_whitespace(self):
+        res = parse_key_value_config('  test    : 1   ,   test2     :  2   ')
+        self.assertEqual(res, {'test': '1', 'test2': '2'})

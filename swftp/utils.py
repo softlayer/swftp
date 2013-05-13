@@ -50,6 +50,25 @@ def try_datetime_parse(datetime_str):
     return mtime
 
 
+def parse_key_value_config(config_value):
+    """ Parses out key-value pairs from a string that has the following format:
+        key: value, key2: value, key3: value
+
+        :param string config_value: a string to parse key-value pairs from
+
+        :returns dict:
+    """
+    if not config_value:
+        return {}
+
+    key_values_unparsed = config_value.split(',')
+    key_values = {}
+    for key_value_pair in key_values_unparsed:
+        key, value = key_value_pair.strip().split(':')
+        key_values[key.strip()] = value.strip()
+    return key_values
+
+
 class MetricCollector(object):
     """ Collects metrics using Twisted Logging
 

@@ -21,6 +21,7 @@ CONFIG_DEFAULTS = {
     'num_persistent_connections': '100',
     'num_connections_per_session': '10',
     'connection_timeout': '240',
+    'extra_headers': '',
     'verbose': 'false',
     'welcome_message': 'Welcome to SwFTP'
                        ' - an FTP interface for Openstack Swift',
@@ -92,7 +93,8 @@ def makeService(options):
 
     from swftp.ftp.server import SwiftFTPRealm
     from swftp.auth import SwiftBasedAuthDB
-    from swftp.utils import log_runtime_info, GLOBAL_METRICS
+    from swftp.utils import (
+        log_runtime_info, GLOBAL_METRICS, parse_key_value_config)
 
     print('Starting SwFTP-ftp %s' % VERSION)
 
@@ -138,6 +140,7 @@ def makeService(options):
         global_max_concurrency=c.getint('ftp', 'num_persistent_connections'),
         max_concurrency=c.getint('ftp', 'num_connections_per_session'),
         timeout=c.getint('ftp', 'connection_timeout'),
+        extra_headers=parse_key_value_config(c.get('sftp', 'extra_headers')),
         verbose=c.getboolean('ftp', 'verbose'))
 
     ftpportal = Portal(SwiftFTPRealm())
