@@ -71,9 +71,9 @@ def swift_stat(last_modified=None, content_type="application/directory",
         mtime = time.mktime(datetime.datetime.utcnow().timetuple())
 
     if content_type == "application/directory":
-        mode = 755 | stat.S_IFDIR
+        mode = 0700 | stat.S_IFDIR
     else:
-        mode = 644 | stat.S_IFREG
+        mode = 0600 | stat.S_IFREG
     return os.stat_result((mode, 0, 0, count, 65535, 65535, size, mtime,
                            mtime, mtime))
 
