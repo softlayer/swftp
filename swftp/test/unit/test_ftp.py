@@ -17,7 +17,7 @@ class FTPServiceTest(unittest.TestCase):
     def setUp(self):
         opts = Options()
         opts.parseOptions([
-            '--config_file=%s' % os.path.join(TEST_PATH, 'test.conf'),
+            '--config_file=%s' % os.path.join(TEST_PATH, 'test-ftp.conf'),
         ])
         self.service = makeService(opts)
         return self.service.startService()

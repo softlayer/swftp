@@ -35,7 +35,12 @@ setup(
     package_data={
         'twisted.plugins': ['twisted/plugins/swftp_ftp.py',
                             'twisted/plugins/swftp_sftp.py'],
-        'swftp.test': ['test.conf', 'test_id_rsa', 'test_id_rsa.pub'],
+        'swftp.test': [
+            'test-sftp.conf',
+            'test-ftp.conf',
+            'test_id_rsa',
+            'test_id_rsa.pub',
+        ],
     },
     data_files=[
         ('', ['README.md']),

@@ -17,7 +17,7 @@ class SFTPServiceTest(unittest.TestCase):
     def setUp(self):
         opts = Options()
         opts.parseOptions([
-            '--config_file=%s' % os.path.join(TEST_PATH, 'test.conf'),
+            '--config_file=%s' % os.path.join(TEST_PATH, 'test-sftp.conf'),
             '--priv_key=%s' % os.path.join(TEST_PATH, 'test_id_rsa'),
             '--pub_key=%s' % os.path.join(TEST_PATH, 'test_id_rsa.pub'),
         ])
