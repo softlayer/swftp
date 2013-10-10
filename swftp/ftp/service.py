@@ -130,8 +130,8 @@ def makeService(options):
             'command.openForWriting',
         ] + GLOBAL_METRICS
         makeReportService(
-            c.get('sftp', 'stats_host'),
-            c.getint('sftp', 'stats_port'),
+            c.get('ftp', 'stats_host'),
+            c.getint('ftp', 'stats_port'),
             known_fields=known_fields
         ).setServiceParent(ftp_service)
 
