@@ -51,8 +51,6 @@ class SwiftBasedAuthDB:
         creds = credentials.IUsernamePassword(c, None)
 
         if creds is not None:
-            defer.DeferredSemaphore(self.max_concurrency)
-
             locks = []
             pool = HTTPConnectionPool(reactor, persistent=False)
             pool.cachedConnectionTimeout = self.timeout

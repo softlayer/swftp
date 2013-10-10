@@ -52,6 +52,28 @@ class MetricCollectorTest(unittest.TestCase):
         return self.auth_db.requestAvatarId(creds)
 
     @patch('swftp.auth.ThrottledSwiftConnection.authenticate',
+           authenticate_good)
+    def test_zero_concurrency(self):
+        auth_db = SwiftBasedAuthDB(
+            'http://127.0.0.1:8080/v1/auth',
+            global_max_concurrency=0,
+            max_concurrency=0,
+        )
+
+        def check_connection(conn):
+            self.assertEquals(conn.username, 'username')
+            self.assertEquals(conn.api_key, 'password')
+            # Default connection pool size per host is 2
+            self.assertEquals(conn.pool.maxPersistentPerHost, 2)
+            self.assertEquals(conn.pool.persistent, False)
+            self.assertEquals(conn.locks, [])
+
+        creds = UsernamePassword('username', 'password')
+        d = auth_db.requestAvatarId(creds)
+        d.addCallback(check_connection)
+        return d
+
+    @patch('swftp.auth.ThrottledSwiftConnection.authenticate',
            authenticate_bad)
     def test_request_avatar_id_fail(self):
         creds = UsernamePassword('username', 'password')
