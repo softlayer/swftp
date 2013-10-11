@@ -164,7 +164,7 @@ stats_port = 38021
 
 **Stats Options**
 
- * **stats_host** - Address that the HTTP stats interface will listen on. If this isn
+ * **stats_host** - Address that the HTTP stats interface will listen on.
  * **stats_port** - Port that the HTTP stats interface will listen on.
  * **log_statsd_host** - statsd hostname.
  * **log_statsd_port** - statsd port.
