@@ -149,7 +149,7 @@ def makeService(options):
     ftpfactory = FTPFactory(ftpportal)
     ftpfactory.welcomeMessage = c.get('ftp', 'welcome_message')
     ftpfactory.allowAnonymous = False
-    ftpfactory.timeOut = int(c.get('ftp', 'session_timeout'))
+    ftpfactory.timeOut = c.getint('ftp', 'session_timeout')
 
     signal.signal(signal.SIGUSR1, log_runtime_info)
     signal.signal(signal.SIGUSR2, log_runtime_info)
