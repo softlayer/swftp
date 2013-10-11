@@ -21,6 +21,7 @@ CONFIG_DEFAULTS = {
     'num_persistent_connections': '100',
     'num_connections_per_session': '10',
     'connection_timeout': '240',
+    'session_timeout': '60',
     'extra_headers': '',
     'verbose': 'false',
     'welcome_message': 'Welcome to SwFTP'
@@ -148,6 +149,7 @@ def makeService(options):
     ftpfactory = FTPFactory(ftpportal)
     ftpfactory.welcomeMessage = c.get('ftp', 'welcome_message')
     ftpfactory.allowAnonymous = False
+    ftpfactory.timeOut = int(c.get('ftp', 'session_timeout'))
 
     signal.signal(signal.SIGUSR1, log_runtime_info)
     signal.signal(signal.SIGUSR2, log_runtime_info)
