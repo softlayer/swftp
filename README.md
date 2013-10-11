@@ -133,7 +133,7 @@ num_persistent_connections = 20
 num_connections_per_session = 10
 connection_timeout = 240
 welcome_message = Welcome to SwFTP - An FTP/SFTP interface for Openstack Swift
-extra_headers = X-Swftp: true, X-Forwarded-Proto: SFTP
+extra_headers = 
 
 log_statsd_host = 
 log_statsd_port = 8125
@@ -143,6 +143,34 @@ log_statsd_metric_prefix = ftp
 stats_host = 
 stats_port = 38021
 ```
+
+**Server Options**
+
+ * **host** - Address that the FTP/SFTP server will listen on.
+ * **port** - Port that the FTP/SFTP server will listen on.
+ * **priv_key** - (SFTP Only) - File path to the private SSH key that the SFTP server will use.
+ * **pub_key** - (SFTP Only) - File path to the public SSH key generated from the private key.
+ * **session_timeout** - (FTP Only) - Session timeout in seconds. Idle sessions will be closed after this much time.
+ * **welcome_message** - (FTP Only) - Custom FTP welcome message.
+
+**Swift Options**
+
+ * **auth_url** - Auth URL to use to authenticate with the backend swift cluster.
+ * **num_persistent_connections** - Number of persistent connections to the backend swift cluster for an entire swftp instance.
+ * **num_connections_per_session** - Number of persistent connections to the backend swift cluster per FTP/SFTP session.
+ * **connection_timeout** - Connection timeout in seconds to the backend swift cluster.
+ * **extra_headers** - Extra HTTP headers that are sent to swift cluster.
+  * e.g.: extra_headers = X-Swftp: true, X-Forwarded-Proto: SFTP
+
+**Stats Options**
+
+ * **stats_host** - Address that the HTTP stats interface will listen on. If this isn
+ * **stats_port** - Port that the HTTP stats interface will listen on.
+ * **log_statsd_host** - statsd hostname.
+ * **log_statsd_port** - statsd port.
+ * **log_statsd_sample_rate** - How often in seconds to send metrics to the statsd server.
+ * **log_statsd_metric_prefix** - Prefix appended to each stat sent to statsd.
+
 
 Caveats
 -------
