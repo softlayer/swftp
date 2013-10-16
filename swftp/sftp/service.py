@@ -25,6 +25,7 @@ CONFIG_DEFAULTS = {
     'num_persistent_connections': '100',
     'num_connections_per_session': '10',
     'connection_timeout': '240',
+    'sessions_per_user': '10',
     'extra_headers': '',
     'verbose': 'false',
 
@@ -97,8 +98,9 @@ def makeService(options):
     from twisted.conch.ssh.keys import Key
     from twisted.cred.portal import Portal
 
-    from swftp.sftp.server import SwiftSFTPRealm, SwiftSSHServerTransport, \
-        SwiftSSHConnection
+    from swftp.realm import SwftpRealm
+    from swftp.sftp.server import (
+        SwiftSSHServerTransport, SwiftSSHConnection, SwiftSSHUserAuthServer)
     from swftp.auth import SwiftBasedAuthDB
     from swftp.utils import (
         log_runtime_info, GLOBAL_METRICS, parse_key_value_config)
@@ -154,13 +156,17 @@ def makeService(options):
         extra_headers=parse_key_value_config(c.get('sftp', 'extra_headers')),
         verbose=c.getboolean('sftp', 'verbose'))
 
-    sftpportal = Portal(SwiftSFTPRealm())
+    realm = SwftpRealm()
+    sftpportal = Portal(realm)
     sftpportal.registerChecker(authdb)
 
     sshfactory = SSHFactory()
-    sshfactory.protocol = SwiftSSHServerTransport
+    protocol = SwiftSSHServerTransport
+    protocol.maxConnectionsPerUser = c.getint('sftp', 'sessions_per_user')
+    sshfactory.protocol = protocol
     sshfactory.noisy = False
     sshfactory.portal = sftpportal
+    sshfactory.services['ssh-userauth'] = SwiftSSHUserAuthServer
     sshfactory.services['ssh-connection'] = SwiftSSHConnection
 
     pub_key_string = file(c.get('sftp', 'pub_key')).read()

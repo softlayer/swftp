@@ -131,6 +131,7 @@ host = 0.0.0.0
 port = 5021
 num_persistent_connections = 20
 num_connections_per_session = 10
+sessions_per_user = 10
 connection_timeout = 240
 welcome_message = Welcome to SwFTP - An FTP/SFTP interface for Openstack Swift
 extra_headers = 
@@ -148,6 +149,7 @@ stats_port = 38021
 
  * **host** - Address that the FTP/SFTP server will listen on.
  * **port** - Port that the FTP/SFTP server will listen on.
+ * **sessions_per_user** - Number of FTP/SFTP sessions per unique swift username to allow.
  * **priv_key** - (SFTP Only) - File path to the private SSH key that the SFTP server will use.
  * **pub_key** - (SFTP Only) - File path to the public SSH key generated from the private key.
  * **session_timeout** - (FTP Only) - Session timeout in seconds. Idle sessions will be closed after this much time.

@@ -5,20 +5,22 @@ See COPYING for license information.
 """
 from zope import interface
 import struct
+from collections import defaultdict
 
 from twisted.conch.interfaces import ISFTPServer, ISession
-from twisted.cred import portal
 from twisted.python import components, log
 from twisted.internet import defer
 
 from twisted.conch import avatar
 from twisted.conch.ssh import session
-from twisted.conch.ssh.filetransfer import FileTransferServer, SFTPError, \
-    FX_FAILURE, FX_NO_SUCH_FILE
+from twisted.conch.ssh.filetransfer import (
+    FileTransferServer, SFTPError, FX_FAILURE, FX_NO_SUCH_FILE)
 from twisted.conch.ssh.common import getNS
-from twisted.conch.ssh.transport import SSHServerTransport
-from twisted.conch.ssh.connection import SSHConnection, \
-    MSG_CHANNEL_WINDOW_ADJUST
+from twisted.conch.ssh.transport import (
+    SSHServerTransport, DISCONNECT_TOO_MANY_CONNECTIONS)
+from twisted.conch.ssh.connection import (
+    SSHConnection, MSG_CHANNEL_WINDOW_ADJUST)
+from twisted.conch.ssh.userauth import SSHUserAuthServer
 
 from swftp.swift import NotFound, Conflict
 from swftp.sftp.swiftfile import SwiftFile
@@ -47,15 +49,6 @@ class SwiftSession:
 
     def closed(self):
         pass
-
-
-class SwiftSFTPRealm:
-    """ Realm for the SFTP server. Provides portal.IRealm """
-    interface.implements(portal.IRealm)
-
-    def requestAvatar(self, avatarId, mind, *interfaces):
-        avatar = SwiftSFTPUser(avatarId)
-        return interfaces[0], avatar, avatar.logout
 
 
 class SwiftSSHConnection(SSHConnection):
@@ -87,18 +80,65 @@ class SwiftFileTransferServer(FileTransferServer):
         d.addErrback(self._ebStatus, requestId, 'realpath failed')
 
 
-class SwiftSSHServerTransport(SSHServerTransport):
+class SwiftSSHServerTransport(SSHServerTransport, object):
     # Overridden to set the version string.
     version = 'SwFTP'
     ourVersionString = 'SSH-2.0-SwFTP'
 
+    _connCountMap = defaultdict(int)
+    maxConnectionsPerUser = 10
+
     def connectionMade(self):
         log.msg(metric='num_clients')
-        return SSHServerTransport.connectionMade(self)
+        return super(SwiftSSHServerTransport, self).connectionMade()
 
     def connectionLost(self, reason):
         log.msg(metric='num_clients', count=-1)
-        return SSHServerTransport.connectionLost(self, reason)
+        if getattr(self, 'avatar', None):
+            username = self.avatar.username()
+            log.msg("User Disconnected %s [%s/%s]" % (
+                    username,
+                    self._connCountMap[username],
+                    self.maxConnectionsPerUser,
+                    ))
+            self._connCountMap[username] -= 1
+            # To avoid a slow memory leak
+            if self._connCountMap[username] == 0:
+                del self._connCountMap[username]
+        return super(SwiftSSHServerTransport, self).connectionLost(reason)
+
+    def on_auth(self, res):
+        if not getattr(self, 'avatar', None):
+            return res
+        username = self.avatar.username()
+        self._connCountMap[username] += 1
+        log.msg("User Connected %s [%s/%s]" % (
+                username,
+                self._connCountMap[username],
+                self.maxConnectionsPerUser,
+                ))
+        if self.maxConnectionsPerUser != 0 and \
+                self._connCountMap[username] > self.maxConnectionsPerUser:
+            log.msg("Too Many Connections For User %s [%s/%s]" % (
+                username,
+                self._connCountMap[username],
+                self.maxConnectionsPerUser,
+            ))
+            self.sendDisconnect(
+                DISCONNECT_TOO_MANY_CONNECTIONS,
+                'too many connections')
+            self.loseConnection()
+        return res
+
+
+class SwiftSSHUserAuthServer(SSHUserAuthServer, object):
+
+    def ssh_USERAUTH_REQUEST(self, *args, **kwargs):
+        d = super(SwiftSSHUserAuthServer, self).ssh_USERAUTH_REQUEST(
+            *args, **kwargs)
+
+        d.addCallback(self.transport.on_auth)
+        return d
 
 
 class SwiftSFTPUser(avatar.ConchUser):
@@ -115,6 +155,9 @@ class SwiftSFTPUser(avatar.ConchUser):
         self.subsystemLookup.update({"sftp": SwiftFileTransferServer})
 
         self.cwd = ''
+
+    def username(self):
+        return self.swiftconn.username
 
     def logout(self):
         """ Log-out/clean up avatar-related things """
@@ -150,6 +193,8 @@ class SFTPServerForSwiftConchUser:
         self.avatar = avatar
         self.conn = avatar.conn
         self.log_command('login')
+
+        # CHECK IF USER HAS TOO MANY CONNECTIONS
 
     def log_command(self, *args, **kwargs):
         """ Logs the given command.

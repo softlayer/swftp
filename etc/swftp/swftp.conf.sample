@@ -6,6 +6,7 @@
 #pub_key = /etc/swftp/id_rsa.pub
 #num_persistent_connections = 20
 #num_connections_per_session = 10
+#sessions_per_user = 10
 #connection_timeout = 240
 #extra_headers = 
 

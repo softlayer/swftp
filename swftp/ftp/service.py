@@ -22,6 +22,7 @@ CONFIG_DEFAULTS = {
     'num_connections_per_session': '10',
     'connection_timeout': '240',
     'session_timeout': '60',
+    'sessions_per_user': '10',
     'extra_headers': '',
     'verbose': 'false',
     'welcome_message': 'Welcome to SwFTP'
@@ -92,7 +93,8 @@ def makeService(options):
     from twisted.protocols.ftp import FTPFactory
     from twisted.cred.portal import Portal
 
-    from swftp.ftp.server import SwiftFTPRealm
+    from swftp.ftp.server import SwftpFTPProtocol
+    from swftp.realm import SwftpRealm
     from swftp.auth import SwiftBasedAuthDB
     from swftp.utils import (
         log_runtime_info, GLOBAL_METRICS, parse_key_value_config)
@@ -144,9 +146,12 @@ def makeService(options):
         extra_headers=parse_key_value_config(c.get('ftp', 'extra_headers')),
         verbose=c.getboolean('ftp', 'verbose'))
 
-    ftpportal = Portal(SwiftFTPRealm())
+    ftpportal = Portal(SwftpRealm())
     ftpportal.registerChecker(authdb)
     ftpfactory = FTPFactory(ftpportal)
+    protocol = SwftpFTPProtocol
+    protocol.maxConnectionsPerUser = c.getint('ftp', 'sessions_per_user')
+    ftpfactory.protocol = protocol
     ftpfactory.welcomeMessage = c.get('ftp', 'welcome_message')
     ftpfactory.allowAnonymous = False
     ftpfactory.timeOut = c.getint('ftp', 'session_timeout')

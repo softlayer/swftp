@@ -22,21 +22,41 @@ CONFIG = get_config()
 class SFTPFuncTest(unittest.TestCase):
     @defer.inlineCallbacks
     def setUp(self):
+        self.active_connections = []
         self.pool = HTTPConnectionPool(reactor, persistent=True)
         self.swift = get_swift_client(CONFIG, pool=self.pool)
         self.tmpdir = tempfile.mkdtemp()
-        self.sftp = get_sftp_client(CONFIG)
+        _, self.sftp = self.get_client()
         yield clean_swift(self.swift)
 
     @defer.inlineCallbacks
     def tearDown(self):
         shutil.rmtree(self.tmpdir)
-        self.sftp.close()
+        for (transport, conn) in self.active_connections:
+            try:
+                conn.close()
+            except:
+                pass
+            try:
+                transport.close()
+            except:
+                pass
+
         yield clean_swift(self.swift)
         yield self.pool.closeCachedConnections()
 
+    def get_client(self):
+        transport, conn = get_sftp_client_with_transport(CONFIG)
+        self.active_connections.append((transport, conn))
+        return transport, conn
+
 
 def get_sftp_client(config):
+    _, client = get_sftp_client_with_transport(config)
+    return client
+
+
+def get_sftp_client_with_transport(config):
     for key in 'sftp_host sftp_port account username password'.split():
         if key not in config:
             raise unittest.SkipTest("%s not set in the test config file" % key)
@@ -47,30 +67,66 @@ def get_sftp_client(config):
 
     t = paramiko.Transport((hostname, port))
     t.connect(username=username, password=password)
-    return paramiko.SFTPClient.from_transport(t)
+    return t, paramiko.SFTPClient.from_transport(t)
 
 
 class BasicTests(unittest.TestCase):
     def test_get_client(self):
-        sftp = get_sftp_client(CONFIG)
-        sftp.stat('/')
-        sftp.close()
+        t, client = get_sftp_client_with_transport(CONFIG)
+        client.stat('/')
+        client.close()
+        t.close()
 
 
 class ClientTests(unittest.TestCase):
-    def test_get_many_client(self):
-        for i in range(32):
-            sftp = get_sftp_client(CONFIG)
-            sftp.close()
+    def setUp(self):
+        self.active_connections = []
 
+    def tearDown(self):
+        for (transport, conn) in self.active_connections:
+            try:
+                conn.close()
+            except:
+                pass
+            try:
+                transport.close()
+            except:
+                pass
+
+    def get_client(self):
+        transport, conn = get_sftp_client_with_transport(CONFIG)
+        self.active_connections.append((transport, conn))
+        return transport, conn
+
+    def test_get_many_client(self):
+        for i in range(100):
+            t, client = self.get_client()
+            client.close()
+            t.close()
+
+    # This test assumes sessions_per_user = 10
     def test_get_many_concurrent(self):
-        connections = []
-        for i in range(32):
-            sftp = get_sftp_client(CONFIG)
-            connections.append(sftp)
+        for i in range(10):
+            self.get_client()
         time.sleep(10)
-        for sftp in connections:
-            sftp.close()
+
+    # This test assumes sessions_per_user = 10
+    def test_concurrency_limit(self):
+        for i in range(10):
+            t, client = self.get_client()
+        self.assertRaises(paramiko.AuthenticationException, self.get_client)
+
+    # This test assumes sessions_per_user = 10
+    def test_concurrency_limit_disconnect_one(self):
+        for i in range(10):
+            self.get_client()
+
+        t, conn = self.active_connections.pop()
+        conn.close()
+        t.close()
+
+        # This should not raise an error
+        self.get_client()
 
 
 class RenameTests(SFTPFuncTest):

@@ -3,29 +3,20 @@ This file contains the primary server code for the FTP server.
 
 See COPYING for license information.
 """
+import stat
+from collections import defaultdict
+
 from zope.interface import implements
-from twisted.cred import portal
-from twisted.protocols.ftp import IFTPShell, IReadFile, IWriteFile, \
-    FileNotFoundError, CmdNotImplementedForArgError, IsNotADirectoryError, \
-    IsADirectoryError
+from twisted.protocols.ftp import (
+    FTP, IFTPShell, IReadFile, IWriteFile, FileNotFoundError,
+    CmdNotImplementedForArgError, IsNotADirectoryError, IsADirectoryError,
+    RESPONSE, TOO_MANY_CONNECTIONS)
 from twisted.internet import defer
 from twisted.internet.protocol import Protocol
 from twisted.python import log
-import stat
 
 from swftp.swiftfilesystem import SwiftFileSystem, swift_stat, obj_to_path
 from swftp.swift import NotFound, Conflict
-
-
-class SwiftFTPRealm:
-    implements(portal.IRealm)
-
-    def getHomeDirectory(self):
-        return '/'
-
-    def requestAvatar(self, avatarId, mind, *interfaces):
-        shell = SwiftFTPShell(avatarId)
-        return interfaces[0], shell, shell.logout
 
 
 def stat_format(keys, props):
@@ -52,6 +43,47 @@ def stat_format(keys, props):
     return l
 
 
+class SwftpFTPProtocol(FTP, object):
+    _connCountMap = defaultdict(int)
+    maxConnectionsPerUser = 10
+
+    def connectionMade(self, *args, **kwargs):
+        log.msg(metric='num_clients')
+        return super(SwftpFTPProtocol, self).connectionMade(*args, **kwargs)
+
+    def connectionLost(self, *args, **kwargs):
+        log.msg(metric='num_clients', count=-1)
+
+        if self.shell:
+            username = self.shell.username()
+            self._connCountMap[username] -= 1
+            # To avoid a slow memory leak
+            if self._connCountMap[username] == 0:
+                del self._connCountMap[username]
+        return super(SwftpFTPProtocol, self).connectionLost(*args, **kwargs)
+
+    def ftp_PASS(self, *args, **kwargs):
+        # Check to see if the user has too many connections
+        d = super(SwftpFTPProtocol, self).ftp_PASS(*args, **kwargs)
+
+        def pass_cb(res):
+            username = self.shell.username()
+            self._connCountMap[username] += 1
+            if self.maxConnectionsPerUser != 0 and \
+                    self._connCountMap[username] > self.maxConnectionsPerUser:
+                log.msg("Too Many Connections For User %s [%s/%s]" % (
+                    username,
+                    self._connCountMap[username],
+                    self.maxConnectionsPerUser,
+                ))
+                self.sendLine(RESPONSE[TOO_MANY_CONNECTIONS])
+                self.transport.loseConnection()
+            return res
+
+        d.addCallback(pass_cb)
+        return d
+
+
 class SwiftFTPShell:
     """ Implements all the methods needed to treat Swift as an FTP Shell """
     implements(IFTPShell)
@@ -60,7 +92,6 @@ class SwiftFTPShell:
         self.swiftconn = swiftconn
         self.swiftfilesystem = SwiftFileSystem(self.swiftconn)
         self.log_command('login')
-        log.msg(metric='num_clients')
 
     def log_command(self, command, *args):
         arg_list = ', '.join(str(arg) for arg in args)
@@ -68,9 +99,11 @@ class SwiftFTPShell:
                 system="SwFTP-FTP, (%s)" % self.swiftconn.username,
                 metric='command.%s' % command)
 
+    def username(self):
+        return self.swiftconn.username
+
     def logout(self):
         self.log_command('logout')
-        log.msg(metric='num_clients', count=-1)
         if self.swiftconn.pool:
             self.swiftconn.pool.closeCachedConnections()
         del self.swiftconn

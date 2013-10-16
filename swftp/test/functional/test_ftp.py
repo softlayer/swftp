@@ -57,19 +57,48 @@ class BasicTests(unittest.TestCase):
 
 
 class ClientTests(unittest.TestCase):
+    def setUp(self):
+        self.active_connections = []
+
+    def tearDown(self):
+        for conn in self.active_connections:
+            try:
+                conn.close()
+            except:
+                pass
+
+    def get_client(self):
+        conn = get_ftp_client(conf)
+        self.active_connections.append(conn)
+        return conn
+
     def test_get_many_client(self):
         for i in range(32):
             ftp = get_ftp_client(conf)
             ftp.close()
 
+    # This test assumes sessions_per_user = 10
     def test_get_many_concurrent(self):
-        connections = []
-        for i in range(32):
-            ftp = get_ftp_client(conf)
-            connections.append(ftp)
+        for i in range(10):
+            self.get_client()
         time.sleep(10)
-        for ftp in connections:
-            ftp.close()
+
+    # This test assumes sessions_per_user = 10
+    def test_concurrency_limit(self):
+        for i in range(10):
+            self.get_client()
+        self.assertRaises(ftplib.error_temp, self.get_client)
+
+    # This test assumes sessions_per_user = 10
+    def test_concurrency_limit_disconnect_one(self):
+        for i in range(10):
+            self.get_client()
+
+        conn = self.active_connections.pop()
+        conn.close()
+
+        # This should not raise an error
+        self.get_client()
 
 
 class RenameTests(FTPFuncTest):
