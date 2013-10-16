@@ -24,6 +24,7 @@
 #port = 5021
 #num_persistent_connections = 20
 #num_connections_per_session = 10
+#sessions_per_user = 10
 #connection_timeout = 240
 #welcome_message = Welcome to SwFTP - An FTP/SFTP interface for Openstack Swift
 #extra_headers = 
