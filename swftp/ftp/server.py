@@ -83,6 +83,21 @@ class SwftpFTPProtocol(FTP, object):
         d.addCallback(pass_cb)
         return d
 
+    def cleanupDTP(self):
+        """
+        Overwrite cleanupDTP() for fix socket leak
+        (see http://twistedmatrix.com/trac/ticket/5367)
+        """
+        transport = None
+        if self.dtpInstance is not None:
+            if self.dtpInstance.transport is not None:
+                transport = self.dtpInstance.transport
+
+        super(SwftpFTPProtocol, self).cleanupDTP()
+
+        if transport:
+            transport.abortConnection()
+
 
 class SwiftFTPShell:
     """ Implements all the methods needed to treat Swift as an FTP Shell """
