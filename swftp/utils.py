@@ -4,9 +4,8 @@ See COPYING for license information.
 import time
 from collections import defaultdict
 
-import twisted.internet.tcp
 from twisted.python import log
-from twisted.internet import reactor
+from twisted.internet import reactor, tcp
 try:
     from collections import OrderedDict
 except ImportError:
@@ -76,6 +75,7 @@ class MetricCollector(object):
                             rolling aggregates.
 
     Example:
+        >>> import twisted.python.log
         >>> h = MetricCollector()
         >>> twisted.python.log.addObserver(h.emit)
         >>> h.totals
@@ -132,41 +132,55 @@ def runtime_info():
     delayed = reactor.getDelayedCalls()
     readers = reactor.getReaders()
     writers = reactor.getWriters()
+    servers = []
     clients = []
-    http_conn_num = 0
+    other = []
     for reader in readers:
-        if isinstance(reader, twisted.internet.tcp.Server):
-            clients.append(reader.getPeer())
-        if isinstance(reader, twisted.internet.tcp.Client):
-            http_conn_num += 1
-    info = {
+        if isinstance(reader, tcp.Server):
+            servers.append({
+                'transport': reader,
+                'host': reader.getHost(),
+                'peer': reader.getPeer()
+            })
+        elif isinstance(reader, tcp.Client):
+            clients.append({
+                'transport': reader,
+                'host': reader.getHost(),
+                'peer': reader.getPeer()
+            })
+        else:
+            other.append(reader)
+    return {
         'num_clients': len(clients),
-        'num_http_conn': http_conn_num,
-        'num_readers': len(readers),
+        'num_servers': len(servers),
+        'num_other': len(other),
         'num_writers': len(writers),
         'num_delayed': len(delayed),
         'clients': clients,
-        'readers': readers,
+        'servers': servers,
+        'other': other,
         'writers': writers,
         'delayed': delayed,
     }
-    return info
 
 
 def log_runtime_info(sig, frame):
     info = runtime_info()
-    log.msg("[Clients: %(num_clients)s] [HTTP Conns: %(num_http_conn)s] "
-            "[Readers: %(num_readers)s] [Writers: %(num_writers)s] "
+    log.msg("[Servers: %(num_servers)s] [Clients: %(num_clients)s] "
+            "[Other: %(other)s] [Writers: %(num_writers)s] "
             "[DelayedCalls: %(num_delayed)s]" % info)
 
     for c in info['clients']:
         log.msg("[client]: %s" % c)
 
+    for d in info['servers']:
+        log.msg("[server]: %s" % d)
+
+    for d in info['other']:
+        log.msg("[other]: %s" % d)
+
     for d in info['delayed']:
         log.msg("[delayed]: %s" % d)
-
-    for r in info['readers']:
-        log.msg("[reader]: %s" % r)
 
     for w in info['writers']:
         log.msg("[writer]: %s" % w)

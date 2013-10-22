@@ -9,7 +9,7 @@ from twisted.web.resource import Resource
 from twisted.web.http_headers import Headers
 from twisted.application import internet, service
 
-from swftp.utils import MetricCollector
+from swftp.utils import MetricCollector, runtime_info
 
 
 class Stats(Resource):
@@ -45,10 +45,22 @@ class Stats(Resource):
         if request.path == '/stats.json':
             request.responseHeaders = Headers({
                 'Content-Type': ['application/json']})
-            return json.dumps(self.get_stats())
+            return json.dumps(self.get_stats(), indent=4)
+        elif request.path == '/debug.json':
+            request.responseHeaders = Headers({
+                'Content-Type': ['application/json']})
+            return json.dumps(runtime_info(), cls=CustomEncoder, indent=4)
         else:
             request.setResponseCode(404)
             return 'not found'
+
+
+class CustomEncoder(json.JSONEncoder):
+    def default(self, obj):
+        # Convert anything that isn't a normal Python type to a string
+        if type(obj) in [str, dict, list, tuple, int, float]:
+            return json.JSONEncoder.default(self, obj)
+        return str(obj)
 
 
 def makeService(host='127.0.0.1', port=8125, known_fields=None):

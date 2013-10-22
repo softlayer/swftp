@@ -34,18 +34,18 @@ class FTPFuncTest(unittest.TestCase):
         yield self.pool.closeCachedConnections()
 
 
-def get_ftp_client(config):
+def validate_config(config):
     for key in 'ftp_host ftp_port account username password'.split():
         if key not in config:
             raise unittest.SkipTest("%s not set in the test config file" % key)
-    hostname = config['ftp_host']
-    port = int(config['ftp_port'])
-    username = "%s:%s" % (config['account'], config['username'])
-    password = config['password']
 
+
+def get_ftp_client(config):
+    validate_config(config)
     ftp = ftplib.FTP()
-    ftp.connect(hostname, port)
-    ftp.login(username, password)
+    ftp.connect(config['ftp_host'], int(config['ftp_port']))
+    ftp.login("%s:%s" % (config['account'], config['username']),
+              config['password'])
     return ftp
 
 
@@ -54,6 +54,18 @@ class BasicTests(unittest.TestCase):
         ftp = get_ftp_client(conf)
         ftp.getwelcome()
         ftp.quit()
+
+    def test_get_client_close(self):
+        ftp = get_ftp_client(conf)
+        ftp.getwelcome()
+        ftp.close()
+
+    def test_get_client_sock_close(self):
+        for n in range(100):
+            ftp = get_ftp_client(conf)
+            ftp.getwelcome()
+            ftp.sock.close()
+            ftp.file.close()
 
 
 class ClientTests(unittest.TestCase):
@@ -79,8 +91,11 @@ class ClientTests(unittest.TestCase):
 
     # This test assumes sessions_per_user = 10
     def test_get_many_concurrent(self):
-        for i in range(10):
-            self.get_client()
+        validate_config(conf)
+        for i in range(100):
+            conn = ftplib.FTP()
+            conn.connect(conf['ftp_host'], int(conf['ftp_port']))
+            self.active_connections.append(conn)
         time.sleep(10)
 
     # This test assumes sessions_per_user = 10
