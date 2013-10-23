@@ -83,6 +83,14 @@ class SwftpFTPProtocol(FTP, object):
         d.addCallback(pass_cb)
         return d
 
+    def ftp_LIST(self, path=''):
+        # ignore special flags for command LIST
+        keys = ['-a', '-l', '-la', '-al']
+        segm = path.split()
+        path = " ".join(s for s in segm if s.lower() not in keys)
+
+        return super(SwftpFTPProtocol, self).ftp_LIST(path)
+
     def cleanupDTP(self):
         """
         Overwrite cleanupDTP() for fix socket leak
