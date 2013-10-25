@@ -91,6 +91,12 @@ class SwftpFTPProtocol(FTP, object):
 
         return super(SwftpFTPProtocol, self).ftp_LIST(path)
 
+    def ftp_NLST(self, path=''):
+        """
+        Overwrite for fix http://twistedmatrix.com/trac/ticket/4258
+        """
+        return super(SwftpFTPProtocol, self).ftp_NLST(path)
+
     def cleanupDTP(self):
         """
         Overwrite cleanupDTP() for fix socket leak
