@@ -49,8 +49,8 @@ class ResponseReceiver(Protocol):
         self.recv_chunks = []
         self.finished = finished
 
-    def dataReceived(self, bytes, final=False):
-        self.recv_chunks.append(bytes)
+    def dataReceived(self, _bytes):
+        self.recv_chunks.append(_bytes)
 
     def connectionLost(self, reason):
         if reason.check(ResponseDone) or reason.check(PotentialDataLoss):
@@ -67,7 +67,7 @@ class ResponseIgnorer(Protocol):
         transport.stopProducing()
         self.finished.callback(None)
 
-    def dataReceived(self, bytes):
+    def dataReceived(self, _bytes):
         pass
 
     def connectionLost(self, reason):
@@ -111,7 +111,7 @@ def cb_process_resp(body, response):
 
 
 def format_head_response(result):
-    resp, body = result
+    resp, _ = result
     return resp.headers
 
 
@@ -120,7 +120,7 @@ def cb_json_decode(result):
     return resp, json.loads(body)
 
 
-class SwiftConnection:
+class SwiftConnection(object):
     """ A basic connection class to interface with OpenStack Swift.
 
         :param auth_url: auth endpoint for swift
@@ -205,7 +205,7 @@ class SwiftConnection:
         return self.authenticate()
 
     def after_authenticate(self, result):
-        response, body = result
+        response, _ = result
         self.storage_url = response.headers['x-storage-url']
         self.auth_token = response.headers['x-auth-token']
         return result
@@ -416,13 +416,13 @@ class ThrottledSwiftConnection(SwiftConnection):
         self.locks = locks or []
 
     def _release_all(self, result):
-        for i, lock in enumerate(self.locks):
+        for lock in self.locks:
             lock.release()
         return result
 
     def _aquire_all(self):
         d = succeed(None)
-        for i, lock in enumerate(self.locks):
+        for lock in self.locks:
             d.addCallback(lambda r: lock.acquire())
         return d
 

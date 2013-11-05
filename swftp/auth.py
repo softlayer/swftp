@@ -11,7 +11,7 @@ from swftp.swift import ThrottledSwiftConnection, UnAuthenticated, UnAuthorized
 from swftp import USER_AGENT
 
 
-class SwiftBasedAuthDB:
+class SwiftBasedAuthDB(object):
     """
         Swift-based authentication
 

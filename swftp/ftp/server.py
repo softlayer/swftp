@@ -107,7 +107,7 @@ class SwftpFTPProtocol(FTP, object):
             transport.abortConnection()
 
 
-class SwiftFTPShell:
+class SwiftFTPShell(object):
     """ Implements all the methods needed to treat Swift as an FTP Shell """
     implements(IFTPShell)
 
@@ -275,7 +275,7 @@ class SwiftFTPShell:
         return defer.succeed(f)
 
 
-class SwiftWriteFile:
+class SwiftWriteFile(object):
     implements(IWriteFile)
 
     def __init__(self, swiftfilesystem, fullpath):

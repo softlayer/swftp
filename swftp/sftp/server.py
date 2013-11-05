@@ -28,7 +28,7 @@ from swftp.sftp.swiftdirectory import SwiftDirectory
 from swftp.swiftfilesystem import SwiftFileSystem, swift_stat, obj_to_path
 
 
-class SwiftSession:
+class SwiftSession(object):
     """ Barebones Session that closes when a client tries to open a shell.
         Provides t.c.i.ISession
 
@@ -52,6 +52,8 @@ class SwiftSession:
 
 
 class SwiftSSHConnection(SSHConnection):
+    transport = None
+
     # SSHConnection is overridden to reduce verbosity.
     def adjustWindow(self, channel, bytesToAdd):
         if channel.localClosed:
@@ -63,6 +65,9 @@ class SwiftSSHConnection(SSHConnection):
 
 
 class SwiftFileTransferServer(FileTransferServer):
+    client = None
+    transport = None
+
     # Overridden to expose the session to the file object to do intellegent
     # throttling. Without this, memory bloat occurs.
     def _cbOpenFile(self, fileObj, requestId):
@@ -84,9 +89,16 @@ class SwiftSSHServerTransport(SSHServerTransport, object):
     # Overridden to set the version string.
     version = 'SwFTP'
     ourVersionString = 'SSH-2.0-SwFTP'
+    maxConnectionsPerUser = 10
 
     _connCountMap = defaultdict(int)
-    maxConnectionsPerUser = 10
+
+    def sendDisconnect(self, *args, **kwargs):
+        return super(SwiftSSHServerTransport, self).sendDisconnect(
+            *args, **kwargs)
+
+    def loseConnection(self):
+        return super(SwiftSSHServerTransport, self).loseConnection()
 
     def connectionMade(self):
         log.msg(metric='num_clients')
@@ -179,7 +191,7 @@ class SwiftSFTPUser(avatar.ConchUser):
                 metric='command.%s' % command)
 
 
-class SFTPServerForSwiftConchUser:
+class SFTPServerForSwiftConchUser(object):
     """ SFTP Server For a Swift User. Provides t.c.i.ISFTPServer
 
     :param avatar: SwiftSFTPUser instance

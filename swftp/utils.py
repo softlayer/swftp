@@ -38,9 +38,9 @@ def try_datetime_parse(datetime_str):
     """
     mtime = None
     if datetime_str:
-        for format in DATE_FORMATS:
+        for date_format in DATE_FORMATS:
             try:
-                mtime_tuple = time.strptime(datetime_str, format)
+                mtime_tuple = time.strptime(datetime_str, date_format)
                 mtime = time.mktime(tuple(mtime_tuple))
             except ValueError:
                 pass
@@ -164,7 +164,7 @@ def runtime_info():
     }
 
 
-def log_runtime_info(sig, frame):
+def log_runtime_info(*args):
     info = runtime_info()
     log.msg("[Servers: %(num_servers)s] [Clients: %(num_clients)s] "
             "[Other: %(other)s] [Writers: %(num_writers)s] "

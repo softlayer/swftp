@@ -268,7 +268,7 @@ class SwiftFileSystem(object):
             container, prefix=prefix, delimiter='/', marker=marker)
 
         def cb(results):
-            r, files = results
+            _, files = results
             next_marker = None
             for f in files:
                 if 'subdir' in f:
@@ -291,7 +291,7 @@ class SwiftFileSystem(object):
         d = self.swiftconn.get_account(marker=marker)
 
         def cb(results):
-            headers, files = results
+            _, files = results
             next_marker = None
             for f in files:
                 f['content-type'] = 'application/directory'

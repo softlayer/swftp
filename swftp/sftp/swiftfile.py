@@ -42,12 +42,12 @@ class SwiftFileReceiver(Protocol):
         self._recv_listeners = []
         self.transport = None
 
-    def dataReceived(self, bytes):
+    def dataReceived(self, _bytes):
         """
             Data has been received from Swift. Pauses Swift if the
             download_buffer_limit has been reached.
         """
-        self._recv_buffer += bytes
+        self._recv_buffer += _bytes
         self._readloop()
         if len(self._recv_buffer) > self.download_buffer_limit:
             self.consume_paused = True
@@ -84,7 +84,7 @@ class SwiftFileReceiver(Protocol):
         """
         self._checksessionbuffer()
         for callback in self._recv_listeners:
-            d, offset, length = callback
+            d, _, length = callback
             if len(self._recv_buffer) >= length:
                 data = self._recv_buffer[:length]
                 d.callback(data)
@@ -136,13 +136,13 @@ class SwiftFileReceiver(Protocol):
         if reason.check(ResponseDone) or reason.check(PotentialDataLoss):
             self._readloop()
             for callback in self._recv_listeners:
-                d, offset, length = callback
+                d, _, _ = callback
                 d.errback(reason)
             self._recv_listeners = []
             self.finished.callback(None)
         else:
             for callback in self._recv_listeners:
-                d, offset, length = callback
+                d, _, _ = callback
                 d.errback(reason)
             self._recv_listeners = []
             self.finished.errback(reason)
@@ -181,7 +181,7 @@ class SwiftFileSender(object):
                 pass
 
         for buf in self._writeBuffer:
-            d, data = buf
+            d, _ = buf
             d.errback(SFTPError(FX_CONNECTION_LOST, 'Connection Lost'))
             self._writeBuffer.remove(buf)
         self._writeBuffer = []
