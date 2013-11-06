@@ -337,15 +337,18 @@ class ListingTests(FTPFuncTest):
 
     @defer.inlineCallbacks
     def test_long_listing(self):
+        obj_count = 10100
         yield self.swift.put_container('ftp_tests')
-        for i in range(101):
-            yield self.swift.put_object(
-                'ftp_tests', str(i),
-                headers={'Content-Type': 'application/directory'})
-        time.sleep(2)
+        deferred_list = []
+        sem = defer.DeferredSemaphore(100)
+        for i in range(obj_count):
+            d = sem.run(self.swift.put_object, 'ftp_tests', str(i))
+            deferred_list.append(d)
+        yield defer.DeferredList(deferred_list, fireOnOneErrback=True)
+        time.sleep(3)
         listing = []
         self.ftp.dir('ftp_tests', listing.append)
-        self.assertEqual(101, len(listing))
+        self.assertEqual(obj_count, len(listing))
 
 
 class MkdirTests(FTPFuncTest):

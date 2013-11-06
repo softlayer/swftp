@@ -6,11 +6,13 @@ import unittest
 import os
 import uuid
 import ConfigParser
+import time
 
 from twisted.internet import defer
 from twisted.internet.defer import DeferredList
 from twisted.web.client import FileBodyProducer
 from swftp.swift import SwiftConnection, NotFound
+from swftp.swiftfilesystem import SwiftFileSystem
 
 utf8_chars = u'\uF10F\uD20D\uB30B\u9409\u8508\u5605\u3703\u1801'\
              u'\u0900\uF110\uD20E\uB30C\u940A\u8509\u5606\u3704'\
@@ -98,41 +100,26 @@ def clean_swift(swift):
     yield remove_test_data(swift, 'ftp_tests')
 
 
+@defer.inlineCallbacks
 def remove_test_data(swift, prefix):
-    d = swift.get_account()
-
-    def cb_delete_container(result, container):
-        return swift.delete_container(container)
-
-    def cb_list_delete_container(result, container):
-        r, listing = result
-        dl = []
-        for obj in listing:
-            dl.append(swift.delete_object(
-                container, obj['name'].encode('utf-8')))
-        d = DeferredList(dl, fireOnOneErrback=True)
-        d.addCallback(cb_delete_container, container)
-        return d
-
-    def cb(result):
-        r, listing = result
-        dl = []
-        for container in listing:
-            if container['name'].startswith(prefix):
-                d = swift.get_container(container['name'].encode('utf-8'))
-                d.addCallback(
-                    cb_list_delete_container,
-                    container['name'].encode('utf-8'))
-                dl.append(d)
-
-        return DeferredList(dl, fireOnOneErrback=True)
-
-    def errback(failure):
-        failure.trap(NotFound)
-
-    d.addCallback(cb)
-    d.addErrback(errback)
-    return d
+    swift_fs = SwiftFileSystem(swift)
+    try:
+        containers = yield swift_fs.get_account_listing()
+        sem = defer.DeferredSemaphore(100)
+        for container in containers:
+            if container.startswith(prefix):
+                objs = yield swift_fs.get_container_listing(container, '')
+                dl = []
+                for obj in objs:
+                    dl.append(sem.run(
+                        swift.delete_object, container, obj))
+                # Wait till all objects are done deleting
+                yield DeferredList(dl, fireOnOneErrback=True)
+                time.sleep(1)
+                # Delete the container
+                yield swift.delete_container(container)
+    except NotFound:
+        pass
 
 
 class RandFile(object):
