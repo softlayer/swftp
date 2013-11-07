@@ -107,36 +107,42 @@ The default location for the config file is /etc/swftp/swftp.conf.
 Here is an example swftp.conf with all defaults:
 ```
 [sftp]
-auth_url = http://127.0.0.1:8080/auth/v1.0
 host = 0.0.0.0
 port = 5022
 priv_key = /etc/swftp/id_rsa
 pub_key = /etc/swftp/id_rsa.pub
+connection_timeout = 240
+
+auth_url = http://127.0.0.1:8080/auth/v1.0
 num_persistent_connections = 20
 num_connections_per_session = 10
-connection_timeout = 240
+rewrite_storage_scheme =
+rewrite_storage_netloc =
 extra_headers = X-Swftp: true, X-Forwarded-Proto: SFTP
 
-log_statsd_host = 
+log_statsd_host =
 log_statsd_port = 8125
 log_statsd_sample_rate = 10
 log_statsd_metric_prefix = sftp
 
-stats_host = 
+stats_host =
 stats_port = 38022
 
 [ftp]
-auth_url = http://127.0.0.1:8080/auth/v1.0
 host = 0.0.0.0
 port = 5021
-num_persistent_connections = 20
-num_connections_per_session = 10
 sessions_per_user = 10
 connection_timeout = 240
 welcome_message = Welcome to SwFTP - An FTP/SFTP interface for Openstack Swift
-extra_headers = 
 
-log_statsd_host = 
+auth_url = http://127.0.0.1:8080/auth/v1.0
+num_persistent_connections = 20
+num_connections_per_session = 10
+rewrite_storage_scheme =
+rewrite_storage_netloc =
+extra_headers = X-Swftp: true, X-Forwarded-Proto: SFTP
+
+log_statsd_host =
 log_statsd_port = 8125
 log_statsd_sample_rate = 10
 log_statsd_metric_prefix = ftp
@@ -163,6 +169,11 @@ stats_port = 38021
  * **connection_timeout** - Connection timeout in seconds to the backend swift cluster.
  * **extra_headers** - Extra HTTP headers that are sent to swift cluster.
   * e.g.: extra_headers = X-Swftp: true, X-Forwarded-Proto: SFTP
+
+ * **rewrite_storage_scheme** - Rewrite the URL scheme of each storage URL returned from Swift auth to this value.
+  * e.g.: rewrite_storage_scheme = https
+ * **rewrite_storage_netloc** - Rewrite the URL netloc (hostname:port) of each storage URL returned from Swift auth to this value.
+  * e.g.: rewrite_storage_netloc = 127.0.0.1:12345
 
 **Stats Options**
 

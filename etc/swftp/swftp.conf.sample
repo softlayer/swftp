@@ -1,38 +1,43 @@
 [sftp]
-#auth_url = http://127.0.0.1:8080/auth/v1.0
 #host = 0.0.0.0
 #port = 5022
 #priv_key = /etc/swftp/id_rsa
 #pub_key = /etc/swftp/id_rsa.pub
+#connection_timeout = 240
+
+#auth_url = http://127.0.0.1:8080/auth/v1.0
 #num_persistent_connections = 20
 #num_connections_per_session = 10
-#sessions_per_user = 10
-#connection_timeout = 240
-#extra_headers = 
+#rewrite_storage_scheme =
+#rewrite_storage_netloc =
+#extra_headers =
 
 #log_statsd_host = 
 #log_statsd_port = 8125
 #log_statsd_sample_rate = 10
 #log_statsd_metric_prefix = sftp
 
-#stats_host = 
+#stats_host =
 #stats_port = 38022
 
 [ftp]
-#auth_url = http://127.0.0.1:8080/auth/v1.0
 #host = 0.0.0.0
 #port = 5021
-#num_persistent_connections = 20
-#num_connections_per_session = 10
 #sessions_per_user = 10
 #connection_timeout = 240
 #welcome_message = Welcome to SwFTP - An FTP/SFTP interface for Openstack Swift
-#extra_headers = 
 
-#log_statsd_host = 
+#auth_url = http://127.0.0.1:8080/auth/v1.0
+#num_persistent_connections = 20
+#num_connections_per_session = 10
+#rewrite_storage_scheme =
+#rewrite_storage_netloc =
+#extra_headers =
+
+#log_statsd_host =
 #log_statsd_port = 8125
 #log_statsd_sample_rate = 10
 #log_statsd_metric_prefix = ftp
 
-#stats_host = 
+#stats_host =
 #stats_port = 38021

@@ -18,6 +18,10 @@ CONFIG_DEFAULTS = {
     'auth_url': 'http://127.0.0.1:8080/auth/v1.0',
     'host': '0.0.0.0',
     'port': '5021',
+
+    'rewrite_storage_scheme': '',
+    'rewrite_storage_netloc': '',
+
     'num_persistent_connections': '100',
     'num_connections_per_session': '10',
     'connection_timeout': '240',
@@ -144,7 +148,10 @@ def makeService(options):
         max_concurrency=c.getint('ftp', 'num_connections_per_session'),
         timeout=c.getint('ftp', 'connection_timeout'),
         extra_headers=parse_key_value_config(c.get('ftp', 'extra_headers')),
-        verbose=c.getboolean('ftp', 'verbose'))
+        verbose=c.getboolean('ftp', 'verbose'),
+        rewrite_scheme=c.get('ftp', 'rewrite_storage_scheme'),
+        rewrite_netloc=c.get('ftp', 'rewrite_storage_netloc'),
+    )
 
     ftpportal = Portal(SwftpRealm())
     ftpportal.registerChecker(authdb)

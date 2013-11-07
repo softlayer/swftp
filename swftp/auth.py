@@ -1,6 +1,8 @@
 """
 See COPYING for license information.
 """
+import urlparse
+
 from zope.interface import implements
 from twisted.internet import defer, reactor
 from twisted.web.client import HTTPConnectionPool
@@ -35,16 +37,49 @@ class SwiftBasedAuthDB(object):
                  max_concurrency=10,
                  timeout=260,
                  extra_headers=None,
-                 verbose=False):
+                 verbose=False,
+                 rewrite_scheme=None,
+                 rewrite_netloc=None):
         self.auth_url = auth_url
         self.global_max_concurrency = global_max_concurrency
         self.max_concurrency = max_concurrency
         self.timeout = timeout
         self.extra_headers = extra_headers
         self.verbose = verbose
+        self.rewrite_scheme = rewrite_scheme
+        self.rewrite_netloc = rewrite_netloc
+
+    def _rewrite_storage_url(self, connection):
+        if not any((self.rewrite_scheme, self.rewrite_netloc)):
+            return
+
+        storage_url_parsed = urlparse.urlparse(connection.storage_url)
+
+        new_parts = {
+            'scheme': storage_url_parsed.scheme,
+            'netloc': storage_url_parsed.netloc,
+            'path': storage_url_parsed.path,
+            'query': storage_url_parsed.query,
+            'fragment': storage_url_parsed.fragment,
+        }
+
+        part_mapping = {
+            'scheme': self.rewrite_scheme,
+            'netloc': self.rewrite_netloc,
+        }
+
+        for k, v in part_mapping.items():
+            if v:
+                new_parts[k] = v
+
+        # Rebuild the URL and set it to the connection's storage_url
+        connection.storage_url = urlparse.urlunsplit((
+            new_parts['scheme'], new_parts['netloc'], new_parts['path'],
+            new_parts['query'], new_parts['fragment']))
 
     def _after_auth(self, result, connection):
         log.msg(metric='auth.succeed')
+        self._rewrite_storage_url(connection)
         return connection
 
     def requestAvatarId(self, c):
