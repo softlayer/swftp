@@ -293,7 +293,7 @@ class SwiftConnection(object):
             params['limit'] = str(limit)
         if marker:
             params['marker'] = quote(marker)
-        if marker:
+        if end_marker:
             params['end_marker'] = quote(end_marker)
         if prefix:
             params['prefix'] = quote(prefix)

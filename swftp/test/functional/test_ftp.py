@@ -23,7 +23,7 @@ class FTPFuncTest(unittest.TestCase):
         self.pool = HTTPConnectionPool(reactor, persistent=True)
         self.swift = get_swift_client(conf, pool=self.pool)
         self.tmpdir = tempfile.mkdtemp()
-        self.ftp = get_ftp_client(conf)
+        self.ftp = self.get_ftp_client()
         yield clean_swift(self.swift)
 
     @defer.inlineCallbacks
@@ -32,6 +32,9 @@ class FTPFuncTest(unittest.TestCase):
         self.ftp.close()
         yield clean_swift(self.swift)
         yield self.pool.closeCachedConnections()
+
+    def get_ftp_client(self):
+        return get_ftp_client(conf)
 
 
 def validate_config(config):
@@ -42,6 +45,8 @@ def validate_config(config):
 
 def get_ftp_client(config):
     validate_config(config)
+    if config.get('debug'):
+        ftplib.FTP.debugging = 5
     ftp = ftplib.FTP()
     ftp.connect(config['ftp_host'], int(config['ftp_port']))
     ftp.login("%s:%s" % (config['account'], config['username']),
@@ -337,18 +342,39 @@ class ListingTests(FTPFuncTest):
 
     @defer.inlineCallbacks
     def test_long_listing(self):
-        obj_count = 10100
+        obj_count = 10010
         yield self.swift.put_container('ftp_tests')
         deferred_list = []
-        sem = defer.DeferredSemaphore(100)
+        sem = defer.DeferredSemaphore(200)
         for i in range(obj_count):
             d = sem.run(self.swift.put_object, 'ftp_tests', str(i))
             deferred_list.append(d)
-        yield defer.DeferredList(deferred_list, fireOnOneErrback=True)
-        time.sleep(3)
+        yield defer.DeferredList(deferred_list, consumeErrors=True)
+        time.sleep(2)
+
+        # The original FTP client can timeout while doing the setup
+        self.ftp = self.get_ftp_client()
         listing = []
         self.ftp.dir('ftp_tests', listing.append)
-        self.assertEqual(obj_count, len(listing))
+        self.assertTrue(len(listing) > 10000)
+
+    @defer.inlineCallbacks
+    def test_long_listing_nested(self):
+        obj_count = 10010
+        yield self.swift.put_container('ftp_tests')
+        deferred_list = []
+        sem = defer.DeferredSemaphore(200)
+        for i in range(obj_count):
+            d = sem.run(self.swift.put_object, 'ftp_tests', 'subdir/' + str(i))
+            deferred_list.append(d)
+        yield defer.DeferredList(deferred_list, consumeErrors=True)
+        time.sleep(2)
+
+        # The original FTP client can timeout while doing the setup
+        self.ftp = self.get_ftp_client()
+        listing = []
+        self.ftp.dir('ftp_tests/subdir', listing.append)
+        self.assertTrue(len(listing) > 10000)
 
 
 class MkdirTests(FTPFuncTest):

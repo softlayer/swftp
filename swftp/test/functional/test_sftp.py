@@ -342,14 +342,30 @@ class ListingTests(SFTPFuncTest):
         obj_count = 10100
         yield self.swift.put_container('sftp_tests')
         deferred_list = []
-        sem = defer.DeferredSemaphore(100)
+        sem = defer.DeferredSemaphore(200)
         for i in range(obj_count):
             d = sem.run(self.swift.put_object, 'sftp_tests', str(i))
             deferred_list.append(d)
-        yield defer.DeferredList(deferred_list, fireOnOneErrback=True)
-        time.sleep(3)
+        yield defer.DeferredList(deferred_list, consumeErrors=True)
+        time.sleep(10)
         listing = self.sftp.listdir('sftp_tests')
-        self.assertEqual(obj_count, len(listing))
+        self.assertTrue(len(listing) > 10000)
+
+    @defer.inlineCallbacks
+    def test_long_listing_nested(self):
+        obj_count = 10100
+        yield self.swift.put_container('sftp_tests')
+        deferred_list = []
+        sem = defer.DeferredSemaphore(200)
+        for i in range(obj_count):
+            d = sem.run(self.swift.put_object,
+                        'sftp_tests', 'subdir/' + str(i))
+            deferred_list.append(d)
+        yield defer.DeferredList(deferred_list, consumeErrors=True)
+        time.sleep(10)
+        listing = []
+        listing = self.sftp.listdir('sftp_tests/subdir')
+        self.assertTrue(len(listing) > 10000)
 
 
 class MkdirTests(SFTPFuncTest):

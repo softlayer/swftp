@@ -11,7 +11,7 @@ import time
 from twisted.internet import defer
 from twisted.internet.defer import DeferredList
 from twisted.web.client import FileBodyProducer
-from swftp.swift import SwiftConnection, NotFound
+from swftp.swift import SwiftConnection, Conflict
 from swftp.swiftfilesystem import SwiftFileSystem
 
 utf8_chars = u'\uF10F\uD20D\uB30B\u9409\u8508\u5605\u3703\u1801'\
@@ -103,23 +103,43 @@ def clean_swift(swift):
 @defer.inlineCallbacks
 def remove_test_data(swift, prefix):
     swift_fs = SwiftFileSystem(swift)
-    try:
-        containers = yield swift_fs.get_account_listing()
-        sem = defer.DeferredSemaphore(100)
-        for container in containers:
-            if container.startswith(prefix):
-                objs = yield swift_fs.get_container_listing(container, '')
+    time.sleep(2)
+    containers = yield swift_fs.get_account_listing()
+    sem = defer.DeferredSemaphore(200)
+    for container in containers:
+        if container.startswith(prefix):
+            while True:
+                objs = yield list_all_objects(swift, container)
                 dl = []
                 for obj in objs:
                     dl.append(sem.run(
-                        swift.delete_object, container, obj))
+                        swift.delete_object, container, obj['name']))
                 # Wait till all objects are done deleting
                 yield DeferredList(dl, fireOnOneErrback=True)
-                time.sleep(1)
-                # Delete the container
-                yield swift.delete_container(container)
-    except NotFound:
-        pass
+                try:
+                    # Delete the container
+                    yield swift.delete_container(container)
+                    break
+                except Conflict:
+                    # Retry listing if there are still objects
+                    # (this can happen a lot since the container server isn't
+                    # guarenteed to be consistent)
+                    pass
+
+
+@defer.inlineCallbacks
+def list_all_objects(swift, container):
+    all_objects = []
+    next_marker = None
+
+    while True:
+        _, files = yield swift.get_container(container, marker=next_marker)
+        for f in files:
+            all_objects.append(f)
+            next_marker = f['name']
+        if len(files) == 0:
+            break
+    defer.returnValue(all_objects)
 
 
 class RandFile(object):

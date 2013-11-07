@@ -297,7 +297,8 @@ class SwiftConnectionTest(unittest.TestCase):
                                                limit=10,
                                                marker='test_obj_0',
                                                end_marker='test_obj_3',
-                                               prefix='test_obj', path='path',
+                                               prefix='test_obj',
+                                               path='path',
                                                delimiter='/')
         self.assertEqual(len(self.agent.requests), 1)
         d, args, kwargs = self.agent.requests[0]
@@ -306,6 +307,53 @@ class SwiftConnectionTest(unittest.TestCase):
             'http://127.0.0.1:8080/v1/AUTH_user/container'
             '?end_marker=test_obj_3&format=json&delimiter=/&prefix=test_obj'
             '&limit=10&marker=test_obj_0&path=path',
+            Headers({
+                'user-agent': ['Twisted Swift'],
+                'x-auth-token': ['TOKEN_123'],
+                'extra': ['header']}),
+            None))
+
+        response = StubResponse(200, body='''[
+   {"name":"test_obj_1",
+    "hash":"4281c348eaf83e70ddce0e07221c3d28",
+    "bytes":14,
+    "content_type":"application\/octet-stream",
+    "last_modified":"2009-02-03T05:26:32.612278"},
+   {"name":"test_obj_2",
+    "hash":"b039efe731ad111bc1b0ef221c3849d0",
+    "bytes":64,
+    "content_type":"application\/octet-stream",
+    "last_modified":"2009-02-03T05:26:32.612278"}
+]''')
+        d.callback(response)
+
+        def cbCheckResponse(resp):
+            self.assertEqual(resp, (response, [{
+                u'bytes': 14,
+                u'content_type': u'application/octet-stream',
+                u'hash': u'4281c348eaf83e70ddce0e07221c3d28',
+                u'last_modified': u'2009-02-03T05:26:32.612278',
+                u'name': u'test_obj_1'
+            }, {
+                u'bytes': 64,
+                u'content_type': u'application/octet-stream',
+                u'hash': u'b039efe731ad111bc1b0ef221c3849d0',
+                u'last_modified': u'2009-02-03T05:26:32.612278',
+                u'name': u'test_obj_2'
+            }]))
+            return resp
+        make_request.addCallback(cbCheckResponse)
+        return make_request
+
+    def test_get_container_marker(self):
+        make_request = self.conn.get_container('container',
+                                               marker='test_obj_0')
+        self.assertEqual(len(self.agent.requests), 1)
+        d, args, kwargs = self.agent.requests[0]
+        self.assertEqual(args, (
+            'GET',
+            'http://127.0.0.1:8080/v1/AUTH_user/container'
+            '?marker=test_obj_0&format=json',
             Headers({
                 'user-agent': ['Twisted Swift'],
                 'x-auth-token': ['TOKEN_123'],
