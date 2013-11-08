@@ -209,8 +209,8 @@ Packaged with SwFTP are a set of example init scripts, upstart scripts. They are
     * /etc/init/swftp-ftp.conf
     * /etc/init/swftp-sftp.conf
 * init.d
-    * /etc/init/swftp-ftp
-    * /etc/init/swftp-sftp
+    * /etc/init.d/swftp-ftp
+    * /etc/init.d/swftp-sftp
 * Supervisor
     * /etc/supervisor/conf.d/swftp.conf
 * Example swftp.conf file

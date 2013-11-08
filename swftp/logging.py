@@ -1,18 +1,45 @@
 """
 See COPYING for license information.
 """
+import sys
 import syslog as pysyslog
+
 from twisted.python import syslog
+from twisted.python import log
+
+WHITELISTED_LOG_SYSTEMS = ['SwFTP', '-']
 
 
-class SysLogObserver(object):
+def msg(message, *args, **kwargs):
+    if not kwargs.get('system'):
+        kwargs['system'] = 'SwFTP'
+    return log.msg(message, *args, **kwargs)
+
+
+class LogObserver(object):
+    def start(self):
+        log.addObserver(self)
+
+    def stop(self):
+        log.removeObserver(self)
+
+    def __call__(self, event_dict):
+        if any((True for system in WHITELISTED_LOG_SYSTEMS
+                if event_dict.get('system', '').startswith(system))) \
+                or event_dict.get('isError', False):
+            self.obs.emit(event_dict)
+
+
+class StdOutObserver(LogObserver):
+    def __init__(self):
+        self.obs = log.FileLogObserver(sys.stdout)
+
+
+class SysLogObserver(LogObserver):
     facility = pysyslog.LOG_USER
 
     def __init__(self):
         self.obs = syslog.SyslogObserver('swftp', facility=self.facility)
-
-    def __call__(self, event_dict):
-        self.obs.emit(event_dict)
 
 
 class LOG_USER(SysLogObserver):

@@ -1,8 +1,8 @@
 """
 See COPYING for license information.
 """
-import time
 from collections import defaultdict
+import time
 
 from twisted.python import log
 from twisted.internet import reactor, tcp
@@ -75,9 +75,8 @@ class MetricCollector(object):
                             rolling aggregates.
 
     Example:
-        >>> import twisted.python.log
         >>> h = MetricCollector()
-        >>> twisted.python.log.addObserver(h.emit)
+        >>> h.start()
         >>> h.totals
         {}
         >>> log.msg(metric='my_metric')
@@ -89,6 +88,7 @@ class MetricCollector(object):
         >>> h.sample()
         >>> h.samples
         {'my_metric1': [1, 0]}
+        >>> h.stop()
 
     """
     def __init__(self, sample_size=10):

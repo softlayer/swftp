@@ -18,7 +18,6 @@ class SwiftDirectory(object):
                 ('.', {}),
                 ('..', {}),
             ])
-        self.done = False
 
     def get_full_listing(self):
         "Populate the directory listing."

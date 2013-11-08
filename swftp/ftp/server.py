@@ -15,6 +15,7 @@ from twisted.internet import defer
 from twisted.internet.protocol import Protocol
 from twisted.python import log
 
+from swftp.logging import msg
 from swftp.swiftfilesystem import SwiftFileSystem, swift_stat, obj_to_path
 from swftp.swift import NotFound, Conflict
 
@@ -56,6 +57,11 @@ class SwftpFTPProtocol(FTP, object):
 
         if self.shell:
             username = self.shell.username()
+            msg("User Disconnected (%s) [%s/%s]" % (
+                username,
+                self._connCountMap[username],
+                self.maxConnectionsPerUser,
+                ))
             self._connCountMap[username] -= 1
             # To avoid a slow memory leak
             if self._connCountMap[username] == 0:
@@ -69,13 +75,18 @@ class SwftpFTPProtocol(FTP, object):
         def pass_cb(res):
             username = self.shell.username()
             self._connCountMap[username] += 1
+            msg("User Connected (%s) [%s/%s]" % (
+                username,
+                self._connCountMap[username],
+                self.maxConnectionsPerUser,
+                ))
             if self.maxConnectionsPerUser != 0 and \
                     self._connCountMap[username] > self.maxConnectionsPerUser:
-                log.msg("Too Many Connections For User %s [%s/%s]" % (
+                msg("Too Many Connections For User (%s) [%s/%s]" % (
                     username,
                     self._connCountMap[username],
                     self.maxConnectionsPerUser,
-                ))
+                    ))
                 self.sendLine(RESPONSE[TOO_MANY_CONNECTIONS])
                 self.transport.loseConnection()
             return res
@@ -124,9 +135,9 @@ class SwiftFTPShell(object):
 
     def log_command(self, command, *args):
         arg_list = ', '.join(str(arg) for arg in args)
-        log.msg("COMMAND: %s(%s)" % (command, arg_list),
-                system="SwFTP-FTP, (%s)" % self.swiftconn.username,
-                metric='command.%s' % command)
+        msg("cmd: %s(%s)" % (command, arg_list),
+            system="SwFTP-FTP, (%s)" % self.swiftconn.username,
+            metric='command.%s' % command)
 
     def username(self):
         return self.swiftconn.username
@@ -274,7 +285,6 @@ class SwiftFTPShell(object):
         fullpath = self._fullpath(path)
         container, obj = obj_to_path(fullpath)
         if not container or not obj:
-            log.msg('cannot upload to root')
             raise CmdNotImplementedForArgError(
                 'Cannot upload files to root directory.')
         f = SwiftWriteFile(self.swiftfilesystem, fullpath)

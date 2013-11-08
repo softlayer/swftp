@@ -4,6 +4,7 @@ This file defines what is required for swftp-sftp to work with twistd.
 See COPYING for license information.
 """
 from swftp import VERSION
+from swftp.logging import StdOutObserver
 
 from twisted.application import internet, service
 from twisted.python import usage, log
@@ -51,7 +52,11 @@ def run():
         print '%s: %s' % (sys.argv[0], errortext)
         print '%s: Try --help for usage details.' % (sys.argv[0])
         sys.exit(1)
-    log.startLogging(sys.stdout)
+
+    # Start Logging
+    obs = StdOutObserver()
+    obs.start()
+
     s = makeService(options)
     s.startService()
     reactor.run()
@@ -98,13 +103,13 @@ def makeService(options):
     Makes a new swftp-sftp service. The only option is the config file
     location. See CONFIG_DEFAULTS for list of configuration options.
     """
-    from twisted.conch.ssh.factory import SSHFactory
     from twisted.conch.ssh.keys import Key
+    from twisted.conch.ssh.connection import SSHConnection
     from twisted.cred.portal import Portal
 
     from swftp.realm import SwftpRealm
     from swftp.sftp.server import (
-        SwiftSSHServerTransport, SwiftSSHConnection, SwiftSSHUserAuthServer)
+        SwiftSSHServerTransport, SwiftSSHUserAuthServer, SwiftSSHFactory)
     from swftp.auth import SwiftBasedAuthDB
     from swftp.utils import (
         log_runtime_info, GLOBAL_METRICS, parse_key_value_config)
@@ -167,14 +172,14 @@ def makeService(options):
     sftpportal = Portal(realm)
     sftpportal.registerChecker(authdb)
 
-    sshfactory = SSHFactory()
+    sshfactory = SwiftSSHFactory()
     protocol = SwiftSSHServerTransport
     protocol.maxConnectionsPerUser = c.getint('sftp', 'sessions_per_user')
     sshfactory.protocol = protocol
     sshfactory.noisy = False
     sshfactory.portal = sftpportal
     sshfactory.services['ssh-userauth'] = SwiftSSHUserAuthServer
-    sshfactory.services['ssh-connection'] = SwiftSSHConnection
+    sshfactory.services['ssh-connection'] = SSHConnection
 
     pub_key_string = file(c.get('sftp', 'pub_key')).read()
     priv_key_string = file(c.get('sftp', 'priv_key')).read()

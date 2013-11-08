@@ -4,13 +4,11 @@ This file contains the primary server code for the SFTP server.
 See COPYING for license information.
 """
 from zope import interface
-import struct
 from collections import defaultdict
 
 from twisted.conch.interfaces import ISFTPServer, ISession
 from twisted.python import components, log
-from twisted.internet import defer
-
+from twisted.internet import defer, protocol
 from twisted.conch import avatar
 from twisted.conch.ssh import session
 from twisted.conch.ssh.filetransfer import (
@@ -18,14 +16,21 @@ from twisted.conch.ssh.filetransfer import (
 from twisted.conch.ssh.common import getNS
 from twisted.conch.ssh.transport import (
     SSHServerTransport, DISCONNECT_TOO_MANY_CONNECTIONS)
-from twisted.conch.ssh.connection import (
-    SSHConnection, MSG_CHANNEL_WINDOW_ADJUST)
 from twisted.conch.ssh.userauth import SSHUserAuthServer
+from twisted.conch.ssh.factory import SSHFactory
 
 from swftp.swift import NotFound, Conflict
+from swftp.logging import msg
 from swftp.sftp.swiftfile import SwiftFile
 from swftp.sftp.swiftdirectory import SwiftDirectory
 from swftp.swiftfilesystem import SwiftFileSystem, swift_stat, obj_to_path
+
+
+class SwiftSSHFactory(SSHFactory):
+    def buildProtocol(self, addr):
+        t = protocol.Factory.buildProtocol(self, addr)
+        t.supportedPublicKeys = self.privateKeys.keys()
+        return t
 
 
 class SwiftSession(object):
@@ -51,25 +56,12 @@ class SwiftSession(object):
         pass
 
 
-class SwiftSSHConnection(SSHConnection):
-    transport = None
-
-    # SSHConnection is overridden to reduce verbosity.
-    def adjustWindow(self, channel, bytesToAdd):
-        if channel.localClosed:
-            return  # we're already closed
-        self.transport.sendPacket(MSG_CHANNEL_WINDOW_ADJUST, struct.pack('>2L',
-                                  self.channelsToRemoteChannel[channel],
-                                  bytesToAdd))
-        channel.localWindowLeft += bytesToAdd
-
-
 class SwiftFileTransferServer(FileTransferServer):
     client = None
     transport = None
 
     # Overridden to expose the session to the file object to do intellegent
-    # throttling. Without this, memory bloat occurs.
+    # throttling. Without this memory bloat occurs.
     def _cbOpenFile(self, fileObj, requestId):
         fileObj.session = self.transport.session
         FileTransferServer._cbOpenFile(self, fileObj, requestId)
@@ -108,34 +100,38 @@ class SwiftSSHServerTransport(SSHServerTransport, object):
         log.msg(metric='num_clients', count=-1)
         if getattr(self, 'avatar', None):
             username = self.avatar.username()
-            log.msg("User Disconnected %s [%s/%s]" % (
-                    username,
-                    self._connCountMap[username],
-                    self.maxConnectionsPerUser,
-                    ))
+            msg("User Disconnected (%s) [%s/%s]" % (
+                username,
+                self._connCountMap[username],
+                self.maxConnectionsPerUser,
+                ))
             self._connCountMap[username] -= 1
             # To avoid a slow memory leak
             if self._connCountMap[username] == 0:
                 del self._connCountMap[username]
-        return super(SwiftSSHServerTransport, self).connectionLost(reason)
+
+        if self.service:
+            self.service.serviceStopped()
+        if hasattr(self, 'avatar'):
+            self.logoutFunction()
 
     def on_auth(self, res):
         if not getattr(self, 'avatar', None):
             return res
         username = self.avatar.username()
         self._connCountMap[username] += 1
-        log.msg("User Connected %s [%s/%s]" % (
+        msg("User Connected (%s) [%s/%s]" % (
+            username,
+            self._connCountMap[username],
+            self.maxConnectionsPerUser,
+            ))
+        if self.maxConnectionsPerUser != 0 and \
+                self._connCountMap[username] > self.maxConnectionsPerUser:
+            msg("Too Many Connections For User (%s) [%s/%s]" % (
                 username,
                 self._connCountMap[username],
                 self.maxConnectionsPerUser,
                 ))
-        if self.maxConnectionsPerUser != 0 and \
-                self._connCountMap[username] > self.maxConnectionsPerUser:
-            log.msg("Too Many Connections For User %s [%s/%s]" % (
-                username,
-                self._connCountMap[username],
-                self.maxConnectionsPerUser,
-            ))
             self.sendDisconnect(
                 DISCONNECT_TOO_MANY_CONNECTIONS,
                 'too many connections')
@@ -186,9 +182,9 @@ class SwiftSFTPUser(avatar.ConchUser):
 
         """
         arg_list = ', '.join(str(arg) for arg in args)
-        log.msg("COMMAND: %s(%s)" % (command, arg_list),
-                system="SwFTP-SFTP, (%s)" % self.swiftconn.username,
-                metric='command.%s' % command)
+        msg("cmd.%s(%s)" % (command, arg_list),
+            system="SwFTP-SFTP, (%s)" % self.swiftconn.username,
+            metric='command.%s' % command)
 
 
 class SFTPServerForSwiftConchUser(object):
@@ -205,8 +201,6 @@ class SFTPServerForSwiftConchUser(object):
         self.avatar = avatar
         self.conn = avatar.conn
         self.log_command('login')
-
-        # CHECK IF USER HAS TOO MANY CONNECTIONS
 
     def log_command(self, *args, **kwargs):
         """ Logs the given command.

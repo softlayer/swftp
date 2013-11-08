@@ -4,6 +4,7 @@ This file defines what is required for swftp-ftp to work with twistd.
 See COPYING for license information.
 """
 from swftp import VERSION
+from swftp.logging import StdOutObserver
 
 from twisted.application import internet, service
 from twisted.python import usage, log
@@ -49,7 +50,11 @@ def run():
         print '%s: %s' % (sys.argv[0], errortext)
         print '%s: Try --help for usage details.' % (sys.argv[0])
         sys.exit(1)
-    log.startLogging(sys.stdout)
+
+    # Start Logging
+    obs = StdOutObserver()
+    obs.start()
+
     s = makeService(options)
     s.startService()
     reactor.run()
