@@ -168,12 +168,11 @@ stats_port = 38021
 * **num_connections_per_session** - Number of persistent connections to the backend swift cluster per FTP/SFTP session.
 * **connection_timeout** - Connection timeout in seconds to the backend swift cluster.
 * **extra_headers** - Extra HTTP headers that are sent to swift cluster.
-  * e.g.: extra_headers = X-Swftp: true, X-Forwarded-Proto: SFTP
-
+    * e.g.: extra_headers = X-Swftp: true, X-Forwarded-Proto: SFTP
 * **rewrite_storage_scheme** - Rewrite the URL scheme of each storage URL returned from Swift auth to this value.
-  * e.g.: rewrite_storage_scheme = https
+    * e.g.: rewrite_storage_scheme = https
 * **rewrite_storage_netloc** - Rewrite the URL netloc (hostname:port) of each storage URL returned from Swift auth to this value.
-  * e.g.: rewrite_storage_netloc = 127.0.0.1:12345
+    * e.g.: rewrite_storage_netloc = 127.0.0.1:12345
 
 **Stats Options**
 
@@ -196,9 +195,9 @@ Project Organization
 --------------------
 * etc/: Sample config files
 * swftp/: Core/shared code
-  * ftp/: FTP server
-  * sftp/: SFTP server
-  * test/: Unit and functional tests
+    * ftp/: FTP server
+    * sftp/: SFTP server
+    * test/: Unit and functional tests
 * twisted/: For the Twisted Plugin System
 
 Packaging/Creating Init Scripts
