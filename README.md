@@ -153,36 +153,36 @@ stats_port = 38021
 
 **Server Options**
 
- * **host** - Address that the FTP/SFTP server will listen on.
- * **port** - Port that the FTP/SFTP server will listen on.
- * **sessions_per_user** - Number of FTP/SFTP sessions per unique swift username to allow.
- * **priv_key** - (SFTP Only) - File path to the private SSH key that the SFTP server will use.
- * **pub_key** - (SFTP Only) - File path to the public SSH key generated from the private key.
- * **session_timeout** - (FTP Only) - Session timeout in seconds. Idle sessions will be closed after this much time.
- * **welcome_message** - (FTP Only) - Custom FTP welcome message.
+* **host** - Address that the FTP/SFTP server will listen on.
+* **port** - Port that the FTP/SFTP server will listen on.
+* **sessions_per_user** - Number of FTP/SFTP sessions per unique swift username to allow.
+* **priv_key** - (SFTP Only) - File path to the private SSH key that the SFTP server will use.
+* **pub_key** - (SFTP Only) - File path to the public SSH key generated from the private key.
+* **session_timeout** - (FTP Only) - Session timeout in seconds. Idle sessions will be closed after this much time.
+* **welcome_message** - (FTP Only) - Custom FTP welcome message.
 
 **Swift Options**
 
- * **auth_url** - Auth URL to use to authenticate with the backend swift cluster.
- * **num_persistent_connections** - Number of persistent connections to the backend swift cluster for an entire swftp instance.
- * **num_connections_per_session** - Number of persistent connections to the backend swift cluster per FTP/SFTP session.
- * **connection_timeout** - Connection timeout in seconds to the backend swift cluster.
- * **extra_headers** - Extra HTTP headers that are sent to swift cluster.
+* **auth_url** - Auth URL to use to authenticate with the backend swift cluster.
+* **num_persistent_connections** - Number of persistent connections to the backend swift cluster for an entire swftp instance.
+* **num_connections_per_session** - Number of persistent connections to the backend swift cluster per FTP/SFTP session.
+* **connection_timeout** - Connection timeout in seconds to the backend swift cluster.
+* **extra_headers** - Extra HTTP headers that are sent to swift cluster.
   * e.g.: extra_headers = X-Swftp: true, X-Forwarded-Proto: SFTP
 
- * **rewrite_storage_scheme** - Rewrite the URL scheme of each storage URL returned from Swift auth to this value.
+* **rewrite_storage_scheme** - Rewrite the URL scheme of each storage URL returned from Swift auth to this value.
   * e.g.: rewrite_storage_scheme = https
- * **rewrite_storage_netloc** - Rewrite the URL netloc (hostname:port) of each storage URL returned from Swift auth to this value.
+* **rewrite_storage_netloc** - Rewrite the URL netloc (hostname:port) of each storage URL returned from Swift auth to this value.
   * e.g.: rewrite_storage_netloc = 127.0.0.1:12345
 
 **Stats Options**
 
- * **stats_host** - Address that the HTTP stats interface will listen on.
- * **stats_port** - Port that the HTTP stats interface will listen on.
- * **log_statsd_host** - statsd hostname.
- * **log_statsd_port** - statsd port.
- * **log_statsd_sample_rate** - How often in seconds to send metrics to the statsd server.
- * **log_statsd_metric_prefix** - Prefix appended to each stat sent to statsd.
+* **stats_host** - Address that the HTTP stats interface will listen on.
+* **stats_port** - Port that the HTTP stats interface will listen on.
+* **log_statsd_host** - statsd hostname.
+* **log_statsd_port** - statsd port.
+* **log_statsd_sample_rate** - How often in seconds to send metrics to the statsd server.
+* **log_statsd_metric_prefix** - Prefix appended to each stat sent to statsd.
 
 
 Caveats
