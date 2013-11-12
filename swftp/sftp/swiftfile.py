@@ -64,7 +64,7 @@ class SwiftFileReceiver(Protocol):
             self.consume_paused = False
             self.transport.resumeProducing()
         else:
-            reactor.callLater(0, self._checksessionbuffertimer)
+            reactor.callLater(5, self._checksessionbuffertimer)
 
     def _checksessionbuffer(self):
         "Checks buffer size to see if we need to pause"

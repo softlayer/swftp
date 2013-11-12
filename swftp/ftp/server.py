@@ -11,7 +11,7 @@ from twisted.protocols.ftp import (
     FTP, IFTPShell, IReadFile, IWriteFile, FileNotFoundError,
     CmdNotImplementedForArgError, IsNotADirectoryError, IsADirectoryError,
     RESPONSE, TOO_MANY_CONNECTIONS)
-from twisted.internet import defer
+from twisted.internet import defer, reactor
 from twisted.internet.protocol import Protocol
 from twisted.python import log
 
@@ -315,19 +315,50 @@ class SwiftReadFile(Protocol):
         self.swiftfilesystem = swiftfilesystem
         self.fullpath = fullpath
         self.finished = defer.Deferred()
+        self.backend_transport = None
+        self.timeout = None
+        self._timedout = False
 
-    def cb_send(self, result):
-        return self.finished
+    def setTimeout(self, seconds):
+        if self.timeout:
+            self.cancelTimeout()
+        self.timeout = reactor.callLater(seconds, self.timedOut)
 
+    def cancelTimeout(self):
+        if self.timeout:
+            self.timeout.cancel()
+
+    def timedOut(self):
+        self._timedout = True
+        self.stopProducing()
+
+    # IReadFile Interface
     def send(self, consumer):
         self.consumer = consumer
         d = self.swiftfilesystem.startFileDownload(self.fullpath, self)
-        d.addCallback(self.cb_send)
+        d.addCallback(lambda _: self.finished)
+        self.consumer.registerProducer(self, True)
         return d
 
+    # Producer Interface
+    def resumeProducing(self):
+        self.setTimeout(20)
+        if self.backend_transport:
+            self.backend_transport.resumeProducing()
+
+    def pauseProducing(self):
+        if self.backend_transport:
+            self.backend_transport.pauseProducing()
+
+    def stopProducing(self):
+        if self.backend_transport:
+            self.backend_transport.stopProducing()
+
+    # Protocol
     def dataReceived(self, data):
-        self.consumer.write(data)
         log.msg(metric='transfer.egress_bytes', count=len(data))
+        self.consumer.write(data)
+        self.setTimeout(20)
 
     def connectionLost(self, reason):
         from twisted.web._newclient import ResponseDone
@@ -336,11 +367,15 @@ class SwiftReadFile(Protocol):
         if reason.check(ResponseDone) or reason.check(PotentialDataLoss):
             self.finished.callback(None)
         else:
-            self.finished.errback(reason)
+            if self._timedout:
+                defer.timeout(self.finished)
+            else:
+                self.finished.errback(reason)
+        self.backend_transport = None
         self.consumer.unregisterProducer()
 
     def makeConnection(self, transport):
-        pass
+        self.backend_transport = transport
 
     def connectionMade(self):
         pass

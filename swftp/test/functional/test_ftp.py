@@ -172,18 +172,21 @@ class RenameTests(FTPFuncTest):
 
 class DownloadTests(FTPFuncTest):
     @defer.inlineCallbacks
-    def _test_download(self, size, name):
+    def _test_download(self, size, name, callback=None):
         yield self.swift.put_container('ftp_tests')
         src_path, md5 = create_test_file(self.tmpdir, size)
         yield upload_file(self.swift, 'ftp_tests', name, src_path, md5)
-
         dlpath = '%s/%s.dat' % (self.tmpdir, name)
-        resp = self.ftp.retrbinary('RETR ftp_tests/%s' % name,
-                                   open(dlpath, 'wb').write)
-        self.assertEqual('226 Transfer Complete.', resp)
 
-        self.assertEqual(os.stat(dlpath).st_size, size)
-        self.assertEqual(md5, compute_md5(dlpath))
+        if not callback:
+            resp = self.ftp.retrbinary('RETR ftp_tests/%s' % name,
+                                       callback=open(dlpath, 'wb').write)
+            self.assertEqual(os.stat(dlpath).st_size, size)
+            self.assertEqual(md5, compute_md5(dlpath))
+        else:
+            resp = self.ftp.retrbinary('RETR ftp_tests/%s' % name,
+                                       callback=callback)
+        self.assertEqual('226 Transfer Complete.', resp)
 
     def test_zero_byte_file(self):
         return self._test_download(0, '0b.dat')
@@ -196,6 +199,42 @@ class DownloadTests(FTPFuncTest):
 
     def test_10mb_file(self):
         return self._test_download(1024 * 1024 * 10, '10mb.dat')
+
+    def test_10mb_file_leak(self):
+        class Callback(object):
+            def __init__(self):
+                self.i = 0
+
+            def cb(self, data):
+                self.i += 1
+                if self.i == 2:
+                    time.sleep(5)  # relatively long sleep
+                # TODO: FIND PROCESS AND CHECK FOR MEMORY BLOAT
+                #       For now, just monitor memory usage
+
+        return self._test_download(1024 * 1024 * 100, '100mb.dat',
+                                   callback=Callback().cb)
+
+    @defer.inlineCallbacks
+    def test_read_timeout(self):
+        class Callback(object):
+            def __init__(self):
+                self.i = 0
+
+            def cb(self, data):
+                self.i += 1
+                if self.i == 2:
+                    time.sleep(40)  # The timeout is actually 30 seconds
+
+        try:
+            yield self._test_download(1024 * 1024 * 100, '100mb.dat',
+                                      callback=Callback().cb)
+        except ftplib.error_temp:
+            pass
+        except:
+            raise
+        else:
+            self.fail("Expected timeout error")
 
 
 class UploadTests(FTPFuncTest):
