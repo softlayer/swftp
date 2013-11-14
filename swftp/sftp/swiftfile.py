@@ -143,7 +143,7 @@ class SwiftFileReceiver(Protocol):
         else:
             for callback in self._recv_listeners:
                 d, _, _ = callback
-                d.errback(reason)
+                d.errback(SFTPError(FX_CONNECTION_LOST, 'Connection Lost'))
             self._recv_listeners = []
             self.finished.errback(reason)
 

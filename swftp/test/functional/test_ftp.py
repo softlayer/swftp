@@ -200,7 +200,7 @@ class DownloadTests(FTPFuncTest):
     def test_10mb_file(self):
         return self._test_download(1024 * 1024 * 10, '10mb.dat')
 
-    def test_10mb_file_leak(self):
+    def test_file_leak(self):
         class Callback(object):
             def __init__(self):
                 self.i = 0

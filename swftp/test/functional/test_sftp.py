@@ -182,13 +182,13 @@ class DownloadTests(SFTPFuncTest):
     timeout = 240
 
     @defer.inlineCallbacks
-    def _test_download(self, size, name):
+    def _test_download(self, size, name, callback=None):
         yield self.swift.put_container('sftp_tests')
         src_path, md5 = create_test_file(self.tmpdir, size)
         yield upload_file(self.swift, 'sftp_tests', name, src_path, md5)
 
         dlpath = '%s/%s_dl' % (self.tmpdir, name)
-        self.sftp.get('sftp_tests/%s' % name, dlpath)
+        self.sftp.get('sftp_tests/%s' % name, dlpath, callback=callback)
 
         self.assertEqual(os.stat(dlpath).st_size, size)
         self.assertEqual(md5, compute_md5(dlpath))
@@ -204,6 +204,38 @@ class DownloadTests(SFTPFuncTest):
 
     def test_10mb_file(self):
         return self._test_download(1024 * 1024 * 10, '10mb.dat')
+
+    def test_file_leak(self):
+        class Callback(object):
+            def __init__(self):
+                self.i = 0
+
+            def cb(self, transferred, total):
+                self.i += 1
+                time.sleep(0.01)  # relatively long sleep
+                # TODO: FIND PROCESS AND CHECK FOR MEMORY BLOAT
+                #       For now, just monitor memory usage
+
+        return self._test_download(1024 * 1024 * 100, '100mb.dat',
+                                   callback=Callback().cb)
+
+    @defer.inlineCallbacks
+    def test_read_timeout(self):
+        class Callback(object):
+            def __init__(self):
+                self.i = 0
+
+            def cb(self, transferred, total):
+                self.i += 1
+                if self.i == 2:
+                    print time.time()
+                    time.sleep(80)  # The timeout is actually 60 seconds
+
+        try:
+            yield self._test_download(1024 * 1024 * 100, '100mb.dat',
+                                      callback=Callback().cb)
+        finally:
+            print time.time()
 
 
 class UploadTests(SFTPFuncTest):
