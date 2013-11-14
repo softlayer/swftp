@@ -8,7 +8,7 @@ from collections import defaultdict
 
 from twisted.conch.interfaces import ISFTPServer, ISession
 from twisted.python import components, log
-from twisted.internet import defer, protocol
+from twisted.internet import defer
 from twisted.conch import avatar
 from twisted.conch.ssh import session
 from twisted.conch.ssh.filetransfer import (
@@ -17,20 +17,12 @@ from twisted.conch.ssh.common import getNS
 from twisted.conch.ssh.transport import (
     SSHServerTransport, DISCONNECT_TOO_MANY_CONNECTIONS)
 from twisted.conch.ssh.userauth import SSHUserAuthServer
-from twisted.conch.ssh.factory import SSHFactory
 
 from swftp.swift import NotFound, Conflict
 from swftp.logging import msg
 from swftp.sftp.swiftfile import SwiftFile
 from swftp.sftp.swiftdirectory import SwiftDirectory
 from swftp.swiftfilesystem import SwiftFileSystem, swift_stat, obj_to_path
-
-
-class SwiftSSHFactory(SSHFactory):
-    def buildProtocol(self, addr):
-        t = protocol.Factory.buildProtocol(self, addr)
-        t.supportedPublicKeys = self.privateKeys.keys()
-        return t
 
 
 class SwiftSession(object):
@@ -82,7 +74,6 @@ class SwiftSSHServerTransport(SSHServerTransport, object):
     version = 'SwFTP'
     ourVersionString = 'SSH-2.0-SwFTP'
     maxConnectionsPerUser = 10
-    supportedKeyExchanges = ['diffie-hellman-group1-sha1']
 
     _connCountMap = defaultdict(int)
 

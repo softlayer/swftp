@@ -103,13 +103,14 @@ def makeService(options):
     Makes a new swftp-sftp service. The only option is the config file
     location. See CONFIG_DEFAULTS for list of configuration options.
     """
-    from twisted.conch.ssh.keys import Key
     from twisted.conch.ssh.connection import SSHConnection
+    from twisted.conch.ssh.factory import SSHFactory
+    from twisted.conch.ssh.keys import Key
     from twisted.cred.portal import Portal
 
     from swftp.realm import SwftpRealm
     from swftp.sftp.server import (
-        SwiftSSHServerTransport, SwiftSSHUserAuthServer, SwiftSSHFactory)
+        SwiftSSHServerTransport, SwiftSSHUserAuthServer)
     from swftp.auth import SwiftBasedAuthDB
     from swftp.utils import (
         log_runtime_info, GLOBAL_METRICS, parse_key_value_config)
@@ -172,7 +173,7 @@ def makeService(options):
     sftpportal = Portal(realm)
     sftpportal.registerChecker(authdb)
 
-    sshfactory = SwiftSSHFactory()
+    sshfactory = SSHFactory()
     protocol = SwiftSSHServerTransport
     protocol.maxConnectionsPerUser = c.getint('sftp', 'sessions_per_user')
     sshfactory.protocol = protocol
