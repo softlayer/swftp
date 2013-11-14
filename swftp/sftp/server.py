@@ -82,6 +82,7 @@ class SwiftSSHServerTransport(SSHServerTransport, object):
     version = 'SwFTP'
     ourVersionString = 'SSH-2.0-SwFTP'
     maxConnectionsPerUser = 10
+    supportedKeyExchanges = ['diffie-hellman-group1-sha1']
 
     _connCountMap = defaultdict(int)
 
