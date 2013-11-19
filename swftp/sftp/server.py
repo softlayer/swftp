@@ -47,6 +47,10 @@ class SwiftSession(object):
     def closed(self):
         pass
 
+    def execCommand(self, proto, command):
+        # Immediately Close the connection
+        self.avatar.conn.transport.transport.loseConnection()
+
 
 class SwiftFileTransferServer(FileTransferServer):
     client = None
