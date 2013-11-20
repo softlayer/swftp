@@ -14,6 +14,10 @@ from twisted.protocols.ftp import (
 from twisted.internet import defer, reactor
 from twisted.internet.protocol import Protocol
 from twisted.python import log
+from twisted.protocols.ftp import (
+    CmdArgSyntaxError, BadCmdSequenceError,
+    REQ_FILE_ACTN_PENDING_FURTHER_INFO
+)
 
 from swftp.logging import msg
 from swftp.swiftfilesystem import SwiftFileSystem, swift_stat, obj_to_path
@@ -107,6 +111,21 @@ class SwftpFTPProtocol(FTP, object):
         Overwrite for fix http://twistedmatrix.com/trac/ticket/4258
         """
         return super(SwftpFTPProtocol, self).ftp_NLST(path)
+
+    def ftp_REST(self, value):
+        if self.dtpInstance is None:
+            raise BadCmdSequenceError('PORT or PASV required before RETR')
+
+        try:
+            value = int(value)
+            if value < 0:
+                raise ValueError
+        except ValueError:
+            raise CmdArgSyntaxError('Value must be nonnegative integer')
+        else:
+            self.dtpInstance.rest_offset = value
+
+        return (REQ_FILE_ACTN_PENDING_FURTHER_INFO, )
 
     def cleanupDTP(self):
         """
@@ -334,8 +353,12 @@ class SwiftReadFile(Protocol):
 
     # IReadFile Interface
     def send(self, consumer):
+        at = getattr(consumer, "rest_offset", 0)
+        if at:
+            del consumer.rest_offset  # reset for next command
         self.consumer = consumer
-        d = self.swiftfilesystem.startFileDownload(self.fullpath, self)
+        d = self.swiftfilesystem.startFileDownload(
+            self.fullpath, self, offset=at)
         d.addCallback(lambda _: self.finished)
         self.consumer.registerProducer(self, True)
         return d
