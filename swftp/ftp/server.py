@@ -16,7 +16,7 @@ from twisted.internet.protocol import Protocol
 from twisted.python import log
 from twisted.protocols.ftp import (
     CmdArgSyntaxError, BadCmdSequenceError,
-    REQ_FILE_ACTN_PENDING_FURTHER_INFO
+    REQ_FILE_ACTN_PENDING_FURTHER_INFO, PortConnectionError
 )
 
 from swftp.logging import msg
@@ -111,6 +111,14 @@ class SwftpFTPProtocol(FTP, object):
         Overwrite for fix http://twistedmatrix.com/trac/ticket/4258
         """
         return super(SwftpFTPProtocol, self).ftp_NLST(path)
+
+    def ftp_PASV(self):
+        d = super(SwftpFTPProtocol, self).ftp_PASV()
+
+        def dtp_connect_timeout_eb(failure):
+            failure.trap(PortConnectionError)
+
+        return d.addErrback(dtp_connect_timeout_eb)
 
     def ftp_REST(self, value):
         if self.dtpInstance is None:
