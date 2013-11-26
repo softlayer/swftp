@@ -35,7 +35,7 @@ def stat_format(keys, props):
         elif key == 'permissions':
             val = st.st_mode
         elif key == 'hardlinks':
-            val = 0
+            val = st.st_nlink
         elif key == 'modified':
             val = int(st.st_mtime)
         elif key in 'owner':
