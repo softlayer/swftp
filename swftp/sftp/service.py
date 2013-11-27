@@ -44,7 +44,8 @@ CONFIG_DEFAULTS = {
     'stats_port': '38022',
 
     # ordered by performance
-    'chiphers': 'blowfish-cbc,aes128-cbc,aes192-cbc,cast128-cbc,aes128-ctr,aes256-cbc,aes192-ctr,aes256-ctr,3des-cbc',
+    'chiphers': 'blowfish-cbc,aes128-cbc,aes192-cbc,cast128-cbc,aes128-ctr,'
+                'aes256-cbc,aes192-ctr,aes256-ctr,3des-cbc',
     'macs': 'hmac-md5, hmac-sha1',
     'compressions': 'none, zlib',
 }
@@ -68,6 +69,21 @@ def run():
     reactor.run()
 
 
+def parse_config_list(conf_name, conf_value, valid_options_list):
+    lst, lst_not = [], []
+    for ch in conf_value.split(","):
+        ch = ch.strip()
+        if ch in valid_options_list:
+            lst.append(ch)
+        else:
+            lst_not.append(ch)
+
+    if lst_not:
+        log.msg(
+            "Unsupported {}: {}".format(conf_name, ", ".join(lst_not)))
+    return lst
+
+
 def get_config(config_path, overrides):
     c = ConfigParser.ConfigParser(CONFIG_DEFAULTS)
     c.add_section('sftp')
@@ -85,46 +101,22 @@ def get_config(config_path, overrides):
         if v:
             c.set('sftp', k, str(v))
 
-    chiphers_conf = c.get('sftp', 'chiphers')
-    chiphers = []
-    chiphers_not = []
-    for ch in chiphers_conf.split(","):
-        ch = ch.strip()
-        if ch not in SwiftSSHServerTransport.supportedCiphers:
-            chiphers_not.append(ch)
-        else:
-            chiphers.append(ch)
-    if chiphers_not:
-        log.msg(
-            "Not support chiphers: {}".format(", ".join(chiphers_not)))
+    # Parse Chipher List
+    chiphers = parse_config_list('ciphers',
+                                 c.get('sftp', 'chiphers'),
+                                 SwiftSSHServerTransport.supportedCiphers)
     c.set('sftp', 'chiphers', chiphers)
 
-    macs_conf = c.get('sftp', 'macs')
-    macs = []
-    macs_not = []
-    for ch in macs_conf.split(","):
-        ch = ch.strip()
-        if ch not in SwiftSSHServerTransport.supportedMACs:
-            macs_not.append(ch)
-        else:
-            macs.append(ch)
-    if macs_not:
-        log.msg(
-            "Not support macs: {}".format(", ".join(macs_not)))
+    # Parse Mac List
+    macs = parse_config_list('macs',
+                             c.get('sftp', 'macs'),
+                             SwiftSSHServerTransport.supportedMACs)
     c.set('sftp', 'macs', macs)
 
-    compressions_conf = c.get('sftp', 'compressions')
-    compressions = []
-    compressions_not = []
-    for ch in compressions_conf.split(","):
-        ch = ch.strip()
-        if ch not in SwiftSSHServerTransport.supportedCompressions:
-            compressions_not.append(ch)
-        else:
-            compressions.append(ch)
-    if compressions_not:
-        log.msg(
-            "Not support compressions: {}".format(", ".join(macs_not)))
+    # Parse Compression List
+    compressions = parse_config_list(
+        'compressions', c.get('sftp', 'compressions'),
+        SwiftSSHServerTransport.supportedCompressions)
     c.set('sftp', 'compressions', compressions)
 
     return c
