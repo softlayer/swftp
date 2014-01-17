@@ -4,7 +4,7 @@ See COPYING for license information.
 from twisted.internet import reactor
 from txstatsd.client import TwistedStatsDClient, StatsDClientProtocol
 from txstatsd.metrics.metrics import Metrics
-from txstatsd.process import PROCESS_STATS, NET_STATS, COUNTER_STATS
+from txstatsd.process import PROCESS_STATS, COUNTER_STATS
 from txstatsd.report import ReportingService
 
 from swftp.utils import MetricCollector
@@ -16,9 +16,6 @@ def makeService(host='127.0.0.1', port=8125, sample_rate=1.0, prefix=''):
     reporting = ReportingService()
 
     for report in PROCESS_STATS:
-        reporting.schedule(report, sample_rate, metrics.gauge)
-
-    for report in NET_STATS:
         reporting.schedule(report, sample_rate, metrics.gauge)
 
     for report in COUNTER_STATS:
