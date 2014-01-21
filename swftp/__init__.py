@@ -10,4 +10,4 @@ __title__ = 'swftp'
 __version__ = VERSION
 __author__ = 'SoftLayer Technologies, Inc.'
 __license__ = 'MIT'
-__copyright__ = 'Copyright 2013 SoftLayer Technologies, Inc.'
+__copyright__ = 'Copyright 2014 SoftLayer Technologies, Inc.'
