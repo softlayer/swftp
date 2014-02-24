@@ -5,6 +5,7 @@ See COPYING for license information.
 """
 from swftp import VERSION
 from swftp.logging import StdOutObserver
+from swftp.sftp.server import SwiftSSHServerTransport
 
 from twisted.application import internet, service
 from twisted.python import usage, log
@@ -41,6 +42,12 @@ CONFIG_DEFAULTS = {
 
     'stats_host': '',
     'stats_port': '38022',
+
+    # ordered by performance
+    'chiphers': 'blowfish-cbc,aes128-cbc,aes192-cbc,cast128-cbc,aes128-ctr,'
+                'aes256-cbc,aes192-ctr,aes256-ctr,3des-cbc',
+    'macs': 'hmac-md5, hmac-sha1',
+    'compressions': 'none, zlib',
 }
 
 
@@ -62,6 +69,21 @@ def run():
     reactor.run()
 
 
+def parse_config_list(conf_name, conf_value, valid_options_list):
+    lst, lst_not = [], []
+    for ch in conf_value.split(","):
+        ch = ch.strip()
+        if ch in valid_options_list:
+            lst.append(ch)
+        else:
+            lst_not.append(ch)
+
+    if lst_not:
+        log.msg(
+            "Unsupported {}: {}".format(conf_name, ", ".join(lst_not)))
+    return lst
+
+
 def get_config(config_path, overrides):
     c = ConfigParser.ConfigParser(CONFIG_DEFAULTS)
     c.add_section('sftp')
@@ -78,6 +100,25 @@ def get_config(config_path, overrides):
     for k, v in overrides.iteritems():
         if v:
             c.set('sftp', k, str(v))
+
+    # Parse Chipher List
+    chiphers = parse_config_list('ciphers',
+                                 c.get('sftp', 'chiphers'),
+                                 SwiftSSHServerTransport.supportedCiphers)
+    c.set('sftp', 'chiphers', chiphers)
+
+    # Parse Mac List
+    macs = parse_config_list('macs',
+                             c.get('sftp', 'macs'),
+                             SwiftSSHServerTransport.supportedMACs)
+    c.set('sftp', 'macs', macs)
+
+    # Parse Compression List
+    compressions = parse_config_list(
+        'compressions', c.get('sftp', 'compressions'),
+        SwiftSSHServerTransport.supportedCompressions)
+    c.set('sftp', 'compressions', compressions)
+
     return c
 
 
@@ -109,8 +150,7 @@ def makeService(options):
     from twisted.cred.portal import Portal
 
     from swftp.realm import SwftpRealm
-    from swftp.sftp.server import (
-        SwiftSSHServerTransport, SwiftSSHUserAuthServer)
+    from swftp.sftp.server import SwiftSSHUserAuthServer
     from swftp.auth import SwiftBasedAuthDB
     from swftp.utils import (
         log_runtime_info, GLOBAL_METRICS, parse_key_value_config)
@@ -176,6 +216,9 @@ def makeService(options):
     sshfactory = SSHFactory()
     protocol = SwiftSSHServerTransport
     protocol.maxConnectionsPerUser = c.getint('sftp', 'sessions_per_user')
+    protocol.supportedCiphers = c.get('sftp', 'chiphers')
+    protocol.supportedMACs = c.get('sftp', 'macs')
+    protocol.supportedCompressions = c.get('sftp', 'compressions')
     sshfactory.protocol = protocol
     sshfactory.noisy = False
     sshfactory.portal = sftpportal
