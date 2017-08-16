@@ -55,7 +55,7 @@ def run():
     options = Options()
     try:
         options.parseOptions(sys.argv[1:])
-    except usage.UsageError(errortext):
+    except usage.UsageError as errortext:
         print '%s: %s' % (sys.argv[0], errortext)
         print '%s: Try --help for usage details.' % (sys.argv[0])
         sys.exit(1)
