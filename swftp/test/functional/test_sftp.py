@@ -235,7 +235,7 @@ class DownloadTests(SFTPFuncTest):
             yield self._test_download(1024 * 1024 * 100, '100mb.dat',
                                       callback=Callback().cb)
         finally:
-            print time.time()
+            print(time.time())
 
 
 class UploadTests(SFTPFuncTest):
